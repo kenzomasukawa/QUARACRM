@@ -43,6 +43,7 @@ import {
   getSLAStatus,
   getWhatsAppDirectUrl,
   cleanPhoneForWhatsApp,
+  WHATSAPP_WEB_TARGET,
 } from '../utils/formatters';
 import {
   generateSalesCopy,
@@ -586,7 +587,7 @@ export const CardModal: React.FC = () => {
                       />
                       <a
                         href={getWhatsAppDirectUrl(selectedCard.contactWhatsapp || selectedCard.contactPhone || '', `Olá ${selectedCard.contactName}, tudo bem?`)}
-                        target="_blank"
+                        target={WHATSAPP_WEB_TARGET}
                         rel="noreferrer"
                         className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-2xs cursor-pointer"
                       >
@@ -838,7 +839,7 @@ export const CardModal: React.FC = () => {
                 </div>
                 <a
                   href={getWhatsAppDirectUrl(selectedCard.contactWhatsapp || selectedCard.contactPhone || '', whatsappInput || 'Olá!')}
-                  target="_blank"
+                  target={WHATSAPP_WEB_TARGET}
                   rel="noreferrer"
                   className="text-[11px] bg-emerald-800 hover:bg-emerald-900 text-emerald-100 px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
                 >

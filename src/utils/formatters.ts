@@ -71,6 +71,12 @@ export function getWhatsAppDirectUrl(phone: string, messageText?: string): strin
   return `https://wa.me/${clean}${encodedText ? `?text=${encodedText}` : ''}`;
 }
 
+// Fixed window/tab name shared by every "Abrir WhatsApp" link in the app.
+// Using the same target instead of "_blank" makes the browser reuse a
+// single already-open WhatsApp Web tab instead of spawning (and reloading)
+// a brand new one on every click.
+export const WHATSAPP_WEB_TARGET = 'quaracrm_whatsapp_web';
+
 export function getSLAStatus(
   enteredAt: string,
   slaHours: number

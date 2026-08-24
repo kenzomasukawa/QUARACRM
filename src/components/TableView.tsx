@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { PhaseId, Priority, CRMCard, User } from '../types/crm';
-import { formatCurrency, formatDate, getWhatsAppDirectUrl } from '../utils/formatters';
+import { formatCurrency, formatDate, getWhatsAppDirectUrl, WHATSAPP_WEB_TARGET } from '../utils/formatters';
 import { exportCardsToCSV } from '../utils/exportUtils';
 
 export const TableView: React.FC = () => {
@@ -235,7 +235,7 @@ export const TableView: React.FC = () => {
                       {card.contactPhone && (
                         <a
                           href={getWhatsAppDirectUrl(card.contactPhone)}
-                          target="_blank"
+                          target={WHATSAPP_WEB_TARGET}
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-mono"

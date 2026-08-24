@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { PhaseId, CRMCard, Priority, User } from '../types/crm';
-import { formatCurrency, getSLAStatus, getWhatsAppDirectUrl } from '../utils/formatters';
+import { formatCurrency, getSLAStatus, getWhatsAppDirectUrl, WHATSAPP_WEB_TARGET } from '../utils/formatters';
 import { ALLOWED_TRANSITIONS } from '../utils/phaseTransitions';
 
 export const KanbanBoard: React.FC = () => {
@@ -360,7 +360,7 @@ export const KanbanBoard: React.FC = () => {
                           {card.contactPhone && (
                             <a
                               href={getWhatsAppDirectUrl(card.contactPhone, `Olá ${card.contactName}, tudo bem? Sou da equipe QuaraCRM.`)}
-                              target="_blank"
+                              target={WHATSAPP_WEB_TARGET}
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
                               title="Abrir WhatsApp"

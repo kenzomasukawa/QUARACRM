@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { CRMCard } from '../types/crm';
-import { formatTimeAgo, formatDate, getWhatsAppDirectUrl } from '../utils/formatters';
+import { formatTimeAgo, formatDate, getWhatsAppDirectUrl, WHATSAPP_WEB_TARGET } from '../utils/formatters';
 
 export const OmnichannelView: React.FC = () => {
   const { cards, currentUser, sendCardMessage, setSelectedCard } = useCRM();
@@ -193,7 +193,7 @@ export const OmnichannelView: React.FC = () => {
                       activeCard.contactPhone,
                       `Olá ${activeCard.contactName}, tudo bem? Sou ${currentUser.name}.`
                     )}
-                    target="_blank"
+                    target={WHATSAPP_WEB_TARGET}
                     rel="noreferrer"
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
                   >
