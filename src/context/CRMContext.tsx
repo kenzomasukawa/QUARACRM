@@ -159,7 +159,7 @@ interface CRMContextType {
 
 const CRMContext = createContext<CRMContextType | undefined>(undefined);
 
-const STORAGE_KEY_PREFIX = 'quaracrm_app_v1_';
+const STORAGE_KEY_PREFIX = 'quaracrm_app_v2_';
 const LEGACY_STORAGE_PREFIX = 'pipecrm_app_v2_';
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
