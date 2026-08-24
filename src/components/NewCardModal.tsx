@@ -31,7 +31,7 @@ export const NewCardModal: React.FC = () => {
 
   if (!isNewCardModalOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !companyName.trim()) {
       alert('Por favor, informe ao menos o Título e a Empresa.');
@@ -43,7 +43,7 @@ export const NewCardModal: React.FC = () => {
       .map((t) => t.trim())
       .filter(Boolean);
 
-    const newCard = createCard({
+    const newCard = await createCard({
       title: title.trim(),
       companyName: companyName.trim(),
       contactName: contactName.trim() || 'Contato Principal',
