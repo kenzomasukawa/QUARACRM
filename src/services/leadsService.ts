@@ -71,14 +71,27 @@ CREATE INDEX IF NOT EXISTS idx_leads_search ON leads USING gin(
   to_tsvector('portuguese', coalesce(title, '') || ' ' || coalesce(company_name, '') || ' ' || coalesce(contact_name, '') || ' ' || coalesce(contact_email, '') || ' ' || coalesce(contact_phone, ''))
 );
 
+-- 3. Table: user_roles (maps a real Supabase Auth user to an app role so
+-- admins/managers can see the whole team's pipeline. This is intentionally
+-- separate from the local "persona switcher" used in demo/offline mode —
+-- only a real row here grants team-wide visibility once Supabase is active.
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'consultant' CHECK (role IN ('admin', 'manager', 'consultant', 'viewer')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- =========================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
--- Each consultant (Supabase Auth user) can only see and manage their
--- own leads. assigned_user_id stores auth.uid()::text, set automatically
--- by the app when a lead is created (never trust a client-supplied value).
+-- Each consultant (Supabase Auth user) can see and manage their own leads.
+-- Users with an 'admin' or 'manager' row in user_roles can see and manage
+-- the whole team's leads. assigned_user_id stores auth.uid()::text, set
+-- automatically by the app when a lead is created (never trust a
+-- client-supplied value).
 -- =========================================================
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lead_interactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read leads" ON leads;
 DROP POLICY IF EXISTS "Allow public insert leads" ON leads;
@@ -89,14 +102,37 @@ DROP POLICY IF EXISTS "Users can insert own leads" ON leads;
 DROP POLICY IF EXISTS "Users can update own leads" ON leads;
 DROP POLICY IF EXISTS "Users can delete own leads" ON leads;
 
-CREATE POLICY "Users can view own leads" ON leads
-  FOR SELECT USING (auth.uid()::text = assigned_user_id);
-CREATE POLICY "Users can insert own leads" ON leads
-  FOR INSERT WITH CHECK (auth.uid()::text = assigned_user_id);
-CREATE POLICY "Users can update own leads" ON leads
-  FOR UPDATE USING (auth.uid()::text = assigned_user_id) WITH CHECK (auth.uid()::text = assigned_user_id);
-CREATE POLICY "Users can delete own leads" ON leads
-  FOR DELETE USING (auth.uid()::text = assigned_user_id);
+-- Users can only read their own role row; role changes are made from the
+-- Supabase SQL editor / dashboard (service role), never from the client,
+-- so nobody can self-promote.
+DROP POLICY IF EXISTS "Users can view own role" ON user_roles;
+CREATE POLICY "Users can view own role" ON user_roles
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- SECURITY DEFINER so it can read user_roles from inside another table's
+-- RLS policy without re-triggering user_roles' own RLS recursively.
+CREATE OR REPLACE FUNCTION public.has_team_visibility()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM user_roles
+    WHERE user_id = auth.uid() AND role IN ('admin', 'manager')
+  );
+$$;
+
+CREATE POLICY "Users can view own or team leads" ON leads
+  FOR SELECT USING (auth.uid()::text = assigned_user_id OR public.has_team_visibility());
+CREATE POLICY "Users can insert own or team leads" ON leads
+  FOR INSERT WITH CHECK (auth.uid()::text = assigned_user_id OR public.has_team_visibility());
+CREATE POLICY "Users can update own or team leads" ON leads
+  FOR UPDATE USING (auth.uid()::text = assigned_user_id OR public.has_team_visibility())
+  WITH CHECK (auth.uid()::text = assigned_user_id OR public.has_team_visibility());
+CREATE POLICY "Users can delete own or team leads" ON leads
+  FOR DELETE USING (auth.uid()::text = assigned_user_id OR public.has_team_visibility());
 
 DROP POLICY IF EXISTS "Allow public read interactions" ON lead_interactions;
 DROP POLICY IF EXISTS "Allow public insert interactions" ON lead_interactions;
@@ -107,21 +143,26 @@ DROP POLICY IF EXISTS "Users can insert own lead interactions" ON lead_interacti
 DROP POLICY IF EXISTS "Users can update own lead interactions" ON lead_interactions;
 DROP POLICY IF EXISTS "Users can delete own lead interactions" ON lead_interactions;
 
--- Interactions are scoped through their parent lead's ownership.
-CREATE POLICY "Users can view own lead interactions" ON lead_interactions
+-- Interactions are scoped through their parent lead's ownership, plus the
+-- same team-wide exception for admin/manager.
+CREATE POLICY "Users can view own or team lead interactions" ON lead_interactions
   FOR SELECT USING (
+    public.has_team_visibility() OR
     EXISTS (SELECT 1 FROM leads WHERE leads.id = lead_interactions.lead_id AND leads.assigned_user_id = auth.uid()::text)
   );
-CREATE POLICY "Users can insert own lead interactions" ON lead_interactions
+CREATE POLICY "Users can insert own or team lead interactions" ON lead_interactions
   FOR INSERT WITH CHECK (
+    public.has_team_visibility() OR
     EXISTS (SELECT 1 FROM leads WHERE leads.id = lead_interactions.lead_id AND leads.assigned_user_id = auth.uid()::text)
   );
-CREATE POLICY "Users can update own lead interactions" ON lead_interactions
+CREATE POLICY "Users can update own or team lead interactions" ON lead_interactions
   FOR UPDATE USING (
+    public.has_team_visibility() OR
     EXISTS (SELECT 1 FROM leads WHERE leads.id = lead_interactions.lead_id AND leads.assigned_user_id = auth.uid()::text)
   );
-CREATE POLICY "Users can delete own lead interactions" ON lead_interactions
+CREATE POLICY "Users can delete own or team lead interactions" ON lead_interactions
   FOR DELETE USING (
+    public.has_team_visibility() OR
     EXISTS (SELECT 1 FROM leads WHERE leads.id = lead_interactions.lead_id AND leads.assigned_user_id = auth.uid()::text)
   );
 
@@ -132,6 +173,14 @@ CREATE POLICY "Users can delete own lead interactions" ON lead_interactions
 -- rows become invisible to everyone.
 --   UPDATE leads SET assigned_user_id = '<seu-auth-user-uuid>'
 --   WHERE assigned_user_id NOT IN (SELECT id::text FROM auth.users);
+--
+-- GRANT TEAM VISIBILITY: to let a real user see and manage the whole
+-- team's leads (dashboard / admin panel usage), give them a role here —
+-- this is what actually grants it; the app's local persona switcher does
+-- not. Run once per admin/manager, replacing the email:
+--   INSERT INTO user_roles (user_id, role)
+--   SELECT id, 'admin' FROM auth.users WHERE email = 'seu-email@dominio.com'
+--   ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
 -- =========================================================
 `;
 }
@@ -228,10 +277,12 @@ export async function fetchPaginatedLeads(params: LeadFilterParams, consultorId:
     sortOrder = 'desc',
   } = params;
 
-  // 1. Build Query — always scoped to the logged-in consultant.
-  // RLS enforces this server-side too; the explicit filter here keeps
-  // pagination counts consistent with what the client expects.
-  let query = supabase.from('leads').select('*', { count: 'exact' }).eq('assigned_user_id', consultorId);
+  // 1. Build Query. No forced assigned_user_id filter here — RLS is the
+  // source of truth for visibility: a plain consultant only ever gets
+  // their own rows back, while an admin/manager (per user_roles) sees the
+  // whole team. The assignedUserId param below narrows within whatever
+  // the RLS policy already allows, it doesn't widen it.
+  let query = supabase.from('leads').select('*', { count: 'exact' });
 
   if (phaseId && phaseId !== 'all') {
     query = query.eq('phase_id', phaseId);
@@ -272,11 +323,14 @@ export async function fetchPaginatedLeads(params: LeadFilterParams, consultorId:
   const totalCount = count || 0;
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
-  // 2. Fetch Aggregates & Phase Counts for pipeline headers
-  const { data: statsData } = await supabase
-    .from('leads')
-    .select('phase_id, value')
-    .eq('assigned_user_id', consultorId);
+  // 2. Fetch Aggregates & Phase Counts for pipeline headers.
+  // Same RLS-driven scoping as the main query above, narrowed the same way
+  // by assignedUserId when a specific consultant is selected.
+  let statsQuery = supabase.from('leads').select('phase_id, value');
+  if (assignedUserId && assignedUserId !== 'all') {
+    statsQuery = statsQuery.eq('assigned_user_id', assignedUserId);
+  }
+  const { data: statsData } = await statsQuery;
 
   const phaseCounts: Record<PhaseId, number> = {
     mapeados: 0,
