@@ -27,15 +27,10 @@ import {
   INITIAL_AUDIT_LOGS,
 } from '../data/initialData';
 import { exportAllToJSON, getLocalStorageSizeKB } from '../utils/exportUtils';
+import { isSupabaseEnvConfigured } from '../lib/supabase';
+import { getSupabaseCredentials } from '../services/supabaseClient';
 import {
-  getSupabaseCredentials,
-  isSupabaseConfigured,
-  saveSupabaseCredentials,
-  clearSupabaseCredentials,
-  testSupabaseConnection,
-} from '../services/supabaseClient';
-import {
-  fetchPaginatedLeads,
+  fetchAllLeads,
   fetchLeadInteractions,
   createLeadInSupabase,
   updateLeadInSupabase,
@@ -133,8 +128,6 @@ interface CRMContextType {
   // Supabase Status & Setup
   supabaseConfig: SupabaseConfig;
   isSupabaseActive: boolean;
-  saveSupabaseSettings: (url: string, anonKey: string) => Promise<{ success: boolean; message: string }>;
-  disconnectSupabase: () => void;
   syncToSupabase: () => Promise<{ success: boolean; message: string }>;
   isSupabaseModalOpen: boolean;
   setIsSupabaseModalOpen: (open: boolean) => void;
@@ -287,17 +280,19 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentLeadInteractions, setCurrentLeadInteractions] = useState<LeadInteraction[]>([]);
   const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
 
-  // Supabase configuration state
-  const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(() => {
+  // Supabase configuration state. Env vars are the single source of truth:
+  // `connected` mirrors the same env-based client that AuthContext and
+  // leadsService actually use, so the UI status can never diverge from reality.
+  const [supabaseConfig] = useState<SupabaseConfig>(() => {
     const creds = getSupabaseCredentials();
     return {
       url: creds.url,
       anonKey: creds.anonKey,
-      connected: isSupabaseConfigured(),
+      connected: isSupabaseEnvConfigured,
     };
   });
 
-  const isSupabaseActive = supabaseConfig.connected;
+  const isSupabaseActive = isSupabaseEnvConfigured;
 
   // Pipeline metrics
   const [phaseCounts, setPhaseCounts] = useState<Record<PhaseId, number>>(() => {
@@ -450,7 +445,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setIsLoadingLeads(true);
     try {
-      const response = await fetchPaginatedLeads(
+      // The Kanban / table / dashboard views all render the full `cards` array
+      // grouped across ~12 phases, so we load every RLS-visible lead here rather
+      // than a single 30-row page (which left most columns empty). Page/pageSize
+      // are still tracked in context for a future flat paginated list view.
+      const response = await fetchAllLeads(
         {
           phaseId: 'all',
           assignedUserId: activeFilterConsultant,
@@ -553,30 +552,27 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [selectedCard?.id, loadLeadInteractions]);
 
-  // Supabase Settings handler
-  const saveSupabaseSettings = async (url: string, anonKey: string): Promise<{ success: boolean; message: string }> => {
-    const test = await testSupabaseConnection(url, anonKey);
-    if (test.success) {
-      saveSupabaseCredentials(url, anonKey);
-      setSupabaseConfig({
-        url,
-        anonKey,
-        connected: true,
-      });
-      addAuditLog('phase_configured', 'Conexão com banco de dados Supabase estabelecida.');
-      return { success: true, message: test.message };
-    }
-    return { success: false, message: test.message };
-  };
-
-  const disconnectSupabase = () => {
-    clearSupabaseCredentials();
-    setSupabaseConfig({
-      url: '',
-      anonKey: '',
-      connected: false,
-    });
-    addAuditLog('phase_configured', 'Conexão com Supabase desconectada. Modo local ativado.');
+  // Surfaces a Supabase write failure (e.g. an RLS permission-denied when a
+  // consultant tries to assign a lead to someone else) in the notifications
+  // bell, instead of the write failing silently and the row disappearing on the
+  // next refresh.
+  const notifySupabaseError = (title: string, err: any) => {
+    const message =
+      err?.message?.includes('row-level security') || err?.code === '42501'
+        ? 'Permissão negada pelo banco de dados. Você não pode atribuir/alterar este lead. Ação salva apenas localmente e será revertida na próxima sincronização.'
+        : `Falha ao salvar no Supabase: ${err?.message || 'erro desconhecido'}.`;
+    setNotifications((prev) => [
+      {
+        id: 'notif-err-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+        title,
+        message,
+        timestamp: new Date().toISOString(),
+        read: false,
+        type: 'system',
+        urgency: 'critical',
+      },
+      ...prev,
+    ]);
   };
 
   const syncToSupabase = async (): Promise<{ success: boolean; message: string }> => {
@@ -737,7 +733,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       card.title
     );
 
-    if (targetPhaseId === 'ganho') {
+    if (targetPhaseId === 'ganho' && previousPhase !== 'ganho') {
       const notif: NotificationItem = {
         id: 'notif-won-' + Date.now(),
         title: `🎉 Negócio Fechado: ${card.title}`,
@@ -757,6 +753,20 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 ...u,
                 currentMonthWonValue: u.currentMonthWonValue + card.value,
                 currentMonthWonCount: u.currentMonthWonCount + 1,
+              }
+            : u
+        )
+      );
+    } else if (previousPhase === 'ganho' && targetPhaseId !== 'ganho') {
+      // Card is being moved back out of "ganho" — undo the earlier count so
+      // re-entering "ganho" later doesn't inflate goal attainment.
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === card.assignedUserId
+            ? {
+                ...u,
+                currentMonthWonValue: Math.max(0, u.currentMonthWonValue - card.value),
+                currentMonthWonCount: Math.max(0, u.currentMonthWonCount - 1),
               }
             : u
         )
@@ -827,6 +837,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await createLeadInSupabase(newCard, currentUser, consultorId);
       } catch (err) {
         console.error('Failed to create lead in Supabase:', err);
+        notifySupabaseError(`Erro ao salvar lead "${newCard.title}"`, err);
       }
     }
 
@@ -869,6 +880,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await updateLeadInSupabase(id, updates, currentUser, auditDetails);
       } catch (err) {
         console.error(`Failed to update lead ${id} in Supabase:`, err);
+        notifySupabaseError('Erro ao atualizar lead', err);
       }
     }
 
@@ -1329,8 +1341,6 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         refreshLeads,
         supabaseConfig,
         isSupabaseActive,
-        saveSupabaseSettings,
-        disconnectSupabase,
         syncToSupabase,
         isSupabaseModalOpen,
         setIsSupabaseModalOpen,

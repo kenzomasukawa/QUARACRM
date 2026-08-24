@@ -1,11 +1,14 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
+import { isSupabaseEnvConfigured } from '../lib/supabase';
 
-const STORAGE_KEY_URL = 'pipe_crm_supabase_url';
-const STORAGE_KEY_KEY = 'pipe_crm_supabase_anon_key';
-
-let cachedClient: SupabaseClient | null = null;
-let lastUrl: string | null = null;
-let lastKey: string | null = null;
+/**
+ * Env-vars are the single source of truth for the Supabase connection. The
+ * canonical client lives in src/lib/supabase.ts and is built from
+ * VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (set locally in .env or in the
+ * Vercel project settings). The former in-app localStorage/modal config path
+ * has been removed — it created a second, divergent client that the real data
+ * layer never used, so the UI could report "connected" while nothing persisted.
+ */
 
 export function sanitizeSupabaseUrl(rawUrl: string): string {
   if (!rawUrl) return '';
@@ -20,73 +23,39 @@ export function getSupabaseCredentials(): { url: string; anonKey: string } {
   const envUrl = (metaEnv.VITE_SUPABASE_URL as string) || '';
   const envKey = (metaEnv.VITE_SUPABASE_ANON_KEY as string) || '';
 
-  const localUrl = localStorage.getItem(STORAGE_KEY_URL) || '';
-  const localKey = localStorage.getItem(STORAGE_KEY_KEY) || '';
-
-  const finalUrl = sanitizeSupabaseUrl(envUrl || localUrl);
-  const finalKey = (envKey || localKey).trim();
-
   return {
-    url: finalUrl,
-    anonKey: finalKey,
+    url: sanitizeSupabaseUrl(envUrl),
+    anonKey: envKey.trim(),
   };
 }
 
 export function isSupabaseConfigured(): boolean {
-  const { url, anonKey } = getSupabaseCredentials();
-  return Boolean(url && anonKey && url.startsWith('http') && anonKey.length > 10);
+  return isSupabaseEnvConfigured;
 }
 
-export function getSupabase(): SupabaseClient | null {
-  const { url, anonKey } = getSupabaseCredentials();
-  if (!url || !anonKey || !url.startsWith('http')) {
-    return null;
-  }
-
-  if (cachedClient && lastUrl === url && lastKey === anonKey) {
-    return cachedClient;
-  }
-
-  try {
-    cachedClient = createClient(url, anonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    });
-    lastUrl = url;
-    lastKey = anonKey;
-    return cachedClient;
-  } catch (err) {
-    console.error('Failed to initialize Supabase client:', err);
-    return null;
-  }
-}
-
-export async function testSupabaseConnection(customUrl?: string, customKey?: string): Promise<{
+/**
+ * Best-effort connectivity check against the env-configured project. Used by the
+ * Supabase status panel to verify the tables exist. Reuses the credentials from
+ * the environment; a fresh client is fine here since it's only a throwaway probe.
+ */
+export async function testSupabaseConnection(): Promise<{
   success: boolean;
   message: string;
   hasLeadsTable?: boolean;
   hasInteractionsTable?: boolean;
 }> {
-  const rawUrl = customUrl || getSupabaseCredentials().url;
-  const anonKey = (customKey || getSupabaseCredentials().anonKey).trim();
-  const url = sanitizeSupabaseUrl(rawUrl);
+  const { url, anonKey } = getSupabaseCredentials();
 
   if (!url || !anonKey) {
     return {
       success: false,
-      message: 'URL e Chave Anônima do Supabase não fornecidas.',
+      message: 'VITE_SUPABASE_URL e/ou VITE_SUPABASE_ANON_KEY não configuradas.',
     };
   }
 
   try {
     const testClient = createClient(url, anonKey);
-    // Test query on 'leads' table
-    const { data: leadsData, error: leadsError } = await testClient
-      .from('leads')
-      .select('id')
-      .limit(1);
+    const { error: leadsError } = await testClient.from('leads').select('id').limit(1);
 
     if (leadsError) {
       if (leadsError.code === '42P01' || leadsError.message?.includes('relation "leads" does not exist')) {
@@ -120,16 +89,4 @@ export async function testSupabaseConnection(customUrl?: string, customKey?: str
       message: `Falha na conexão: ${err?.message || 'Erro de rede desconhecido'}`,
     };
   }
-}
-
-export function saveSupabaseCredentials(url: string, anonKey: string): void {
-  localStorage.setItem(STORAGE_KEY_URL, sanitizeSupabaseUrl(url));
-  localStorage.setItem(STORAGE_KEY_KEY, anonKey.trim());
-  cachedClient = null;
-}
-
-export function clearSupabaseCredentials(): void {
-  localStorage.removeItem(STORAGE_KEY_URL);
-  localStorage.removeItem(STORAGE_KEY_KEY);
-  cachedClient = null;
 }

@@ -42,6 +42,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const escapedHtml = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/\n/g, '<br/>');
+
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -53,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         to: [to],
         subject: subject || 'Contato Comercial — QuaraCRM',
         text: content,
-        html: `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #111;">${content.replace(/\n/g, '<br/>')}</div>`,
+        html: `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #111;">${escapedHtml}</div>`,
       }),
     });
 

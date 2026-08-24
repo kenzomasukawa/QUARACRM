@@ -11,6 +11,13 @@ import {
   CardAuditHistory,
 } from '../types/crm';
 
+// PostgREST or()-filter values containing a comma or parenthesis break the
+// filter's own syntax unless wrapped in double quotes (with any embedded
+// backslash/quote escaped first).
+function escapeOrFilterValue(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 // DDL for creating the optimized database schema in Supabase SQL editor
 export function getSupabaseSchemaSQL(): string {
   return `-- =========================================================
@@ -297,9 +304,9 @@ export async function fetchPaginatedLeads(params: LeadFilterParams, consultorId:
   }
 
   if (search && search.trim()) {
-    const q = search.trim();
+    const q = escapeOrFilterValue(`%${search.trim()}%`);
     query = query.or(
-      `title.ilike.%${q}%,company_name.ilike.%${q}%,contact_name.ilike.%${q}%,contact_email.ilike.%${q}%,contact_phone.ilike.%${q}%`
+      `title.ilike.${q},company_name.ilike.${q},contact_name.ilike.${q},contact_email.ilike.${q},contact_phone.ilike.${q}`
     );
   }
 
@@ -385,6 +392,147 @@ export async function fetchPaginatedLeads(params: LeadFilterParams, consultorId:
 }
 
 /**
+ * Fetch ALL leads visible to the current user (RLS-scoped) for the Kanban /
+ * table / dashboard views, which each render the full `cards` array grouped by
+ * phase and cannot work with a single 30-row page. Rows are streamed in batches
+ * of `BATCH_SIZE` to get past Supabase's default 1000-row response cap, then the
+ * same pipeline aggregates (phase counts, values) are computed as in
+ * fetchPaginatedLeads. Visibility is unchanged — RLS still decides which rows
+ * come back (own leads vs. whole team for admin/manager); this only removes the
+ * artificial page-size truncation for the board.
+ */
+export async function fetchAllLeads(params: LeadFilterParams, consultorId: string): Promise<PaginatedLeadsResponse> {
+  if (!isSupabaseEnvConfigured) {
+    throw new Error('Supabase client não configurado');
+  }
+  if (!consultorId) {
+    throw new Error('Usuário não autenticado.');
+  }
+
+  const {
+    phaseId,
+    assignedUserId,
+    priority,
+    search,
+    sortBy = 'created_at',
+    sortOrder = 'desc',
+  } = params;
+
+  const applyFilters = (q: any) => {
+    if (phaseId && phaseId !== 'all') {
+      q = q.eq('phase_id', phaseId);
+    }
+    if (assignedUserId && assignedUserId !== 'all') {
+      q = q.eq('assigned_user_id', assignedUserId);
+    }
+    if (priority && priority !== 'all') {
+      q = q.eq('priority', priority);
+    }
+    if (search && search.trim()) {
+      const s = escapeOrFilterValue(`%${search.trim()}%`);
+      q = q.or(
+        `title.ilike.${s},company_name.ilike.${s},contact_name.ilike.${s},contact_email.ilike.${s},contact_phone.ilike.${s}`
+      );
+    }
+    return q;
+  };
+
+  const sortColumn = sortBy === 'value' ? 'value' : sortBy === 'title' ? 'title' : 'created_at';
+
+  // Stream all matching rows in batches to bypass the default row cap.
+  const BATCH_SIZE = 1000;
+  const allRows: any[] = [];
+  let totalCount = 0;
+  let offset = 0;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    let query = supabase.from('leads').select('*', { count: 'exact' });
+    query = applyFilters(query)
+      .order(sortColumn, { ascending: sortOrder === 'asc' })
+      .range(offset, offset + BATCH_SIZE - 1);
+
+    const { data, count, error } = await query;
+
+    if (error) {
+      console.error('Error fetching all leads:', error);
+      throw error;
+    }
+
+    if (typeof count === 'number') {
+      totalCount = count;
+    }
+
+    const batch = data || [];
+    allRows.push(...batch);
+
+    if (batch.length < BATCH_SIZE) break;
+    offset += BATCH_SIZE;
+  }
+
+  const leads: CRMCard[] = allRows.map(mapRowToCard);
+
+  // Pipeline aggregates & phase counts (same RLS scoping, narrowed by
+  // assignedUserId when a specific consultant is selected).
+  let statsQuery = supabase.from('leads').select('phase_id, value');
+  if (assignedUserId && assignedUserId !== 'all') {
+    statsQuery = statsQuery.eq('assigned_user_id', assignedUserId);
+  }
+  const { data: statsData } = await statsQuery;
+
+  const phaseCounts: Record<PhaseId, number> = {
+    mapeados: 0,
+    prospeccao: 0,
+    diagnostica: 0,
+    proposta: 0,
+    negociacao: 0,
+    followup_1: 0,
+    followup_2: 0,
+    followup_3: 0,
+    followup_4: 0,
+    followup_5: 0,
+    ganho: 0,
+    perdido: 0,
+  };
+
+  let totalPipelineValue = 0;
+  let totalWonValue = 0;
+  let totalWonCount = 0;
+  let totalLostCount = 0;
+
+  if (statsData) {
+    statsData.forEach((row: any) => {
+      const p = row.phase_id as PhaseId;
+      const v = Number(row.value) || 0;
+      if (phaseCounts[p] !== undefined) {
+        phaseCounts[p] += 1;
+      }
+      if (p === 'ganho') {
+        totalWonValue += v;
+        totalWonCount += 1;
+      } else if (p === 'perdido') {
+        totalLostCount += 1;
+      } else {
+        totalPipelineValue += v;
+      }
+    });
+  }
+
+  return {
+    leads,
+    totalCount,
+    page: 1,
+    pageSize: leads.length,
+    totalPages: 1,
+    phaseCounts,
+    totalPipelineValue,
+    totalWonValue,
+    totalWonCount,
+    totalLostCount,
+  };
+}
+
+/**
  * Fetch ALL interactions for a single lead on-demand when opening the card modal.
  * Index: (lead_id, created_at DESC/ASC)
  */
@@ -415,7 +563,7 @@ export async function fetchLeadInteractions(leadId: string): Promise<{
   const history: CardAuditHistory[] = [];
 
   interactions.forEach((item) => {
-    if (item.type === 'message' || item.type === 'whatsapp' || item.type === 'email' || item.type === 'note' || item.type === 'ai_note') {
+    if (item.type === 'message' || item.type === 'whatsapp' || item.type === 'email' || item.type === 'note' || item.type === 'ai_note' || item.type === 'ai_prompt') {
       messages.push({
         id: item.id,
         channel: (item.channel === 'whatsapp' || item.channel === 'email' ? item.channel : 'internal_note') as any,
@@ -472,9 +620,12 @@ export async function createLeadInSupabase(
     contactPhone: card.contactPhone || '',
     contactWhatsapp: card.contactWhatsapp || card.contactPhone || '',
     contactRole: card.contactRole || '',
-    // Always bound to the authenticated Supabase user (auth.uid()), never
-    // the locally-simulated CRM profile — this is what RLS checks against.
-    assignedUserId: consultorId,
+    // Use the consultant explicitly chosen in the UI (NewCardModal) when
+    // provided, falling back to the authenticated creator's id otherwise.
+    // RLS is the final gate: only admin/manager (per user_roles) may assign a
+    // lead to a different user; a plain consultant assigning to someone else
+    // gets a permission-denied error surfaced by the caller.
+    assignedUserId: card.assignedUserId || consultorId,
     phaseId: card.phaseId || 'mapeados',
     value: Number(card.value) || 0,
     priority: card.priority || 'media',

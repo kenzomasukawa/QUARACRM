@@ -272,8 +272,8 @@ export interface AuditLogEntry {
 export interface LeadInteraction {
   id: string;
   leadId: string;
-  type: 'message' | 'history' | 'ai_note' | 'whatsapp' | 'email' | 'call' | 'note' | 'status_change';
-  channel?: 'whatsapp' | 'email' | 'call' | 'internal' | 'system';
+  type: 'message' | 'history' | 'ai_note' | 'ai_prompt' | 'whatsapp' | 'email' | 'call' | 'note' | 'status_change';
+  channel?: 'whatsapp' | 'email' | 'call' | 'internal' | 'system' | 'ai_assistant';
   sender: 'client' | 'user' | 'system' | 'ai';
   userId?: string;
   userName?: string;
