@@ -92,16 +92,17 @@ export function getSLAStatus(
 
   const entered = new Date(enteredAt).getTime();
   const now = new Date().getTime();
-  const hoursElapsed = Math.max(0, (now - entered) / (1000 * 60 * 60));
-  const isOverdue = hoursElapsed > slaHours;
-  const percentRemaining = Math.max(0, Math.min(100, ((slaHours - hoursElapsed) / slaHours) * 100));
+  const preciseHoursElapsed = Math.max(0, (now - entered) / (1000 * 60 * 60));
+  const isOverdue = preciseHoursElapsed > slaHours;
+  const percentRemaining = Math.max(0, Math.min(100, ((slaHours - preciseHoursElapsed) / slaHours) * 100));
+  const hoursElapsed = Math.round(preciseHoursElapsed * 10) / 10;
 
   let label = '';
   if (isOverdue) {
-    const hoursOver = Math.round(hoursElapsed - slaHours);
+    const hoursOver = Math.round(preciseHoursElapsed - slaHours);
     label = `SLA Excedido (+${hoursOver}h)`;
   } else {
-    const hoursLeft = Math.round(slaHours - hoursElapsed);
+    const hoursLeft = Math.round(slaHours - preciseHoursElapsed);
     label = `${hoursLeft}h restantes`;
   }
 

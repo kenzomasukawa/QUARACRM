@@ -37,6 +37,11 @@ export const AdminView: React.FC = () => {
   const [goalValueInput, setGoalValueInput] = useState<number>(0);
   const [goalLeadsInput, setGoalLeadsInput] = useState<number>(0);
 
+  // SLA (hours) inputs, keyed by phase id — holds the raw text being typed so
+  // the field doesn't get committed (and re-rendered from context) on every
+  // keystroke, which was jumping the cursor and scrambling the digits.
+  const [slaInputs, setSlaInputs] = useState<Record<string, string>>({});
+
   // New Phase Field Editor
   const [selectedPhaseForField, setSelectedPhaseForField] = useState<PhaseId>('mapeados');
   const [newFieldLabel, setNewFieldLabel] = useState('');
@@ -405,10 +410,21 @@ export const AdminView: React.FC = () => {
                     <span className="text-neutral-400">SLA:</span>
                     <input
                       type="number"
-                      value={phase.slaHours}
+                      value={slaInputs[phase.id] ?? String(phase.slaHours)}
                       onChange={(e) =>
-                        updatePhaseConfig(phase.id, { slaHours: parseInt(e.target.value, 10) || 0 })
+                        setSlaInputs((prev) => ({ ...prev, [phase.id]: e.target.value }))
                       }
+                      onBlur={() => {
+                        const raw = slaInputs[phase.id];
+                        if (raw !== undefined) {
+                          updatePhaseConfig(phase.id, { slaHours: parseInt(raw, 10) || 0 });
+                        }
+                        setSlaInputs((prev) => {
+                          const next = { ...prev };
+                          delete next[phase.id];
+                          return next;
+                        });
+                      }}
                       className="w-16 px-1.5 py-0.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded text-center font-bold text-xs"
                     />
                     <span className="text-neutral-400">horas</span>
