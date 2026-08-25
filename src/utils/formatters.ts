@@ -65,10 +65,15 @@ export function cleanPhoneForWhatsApp(phone: string): string {
   return cleaned;
 }
 
+// Deep-links straight into web.whatsapp.com instead of wa.me. wa.me redirects
+// through an api.whatsapp.com interstitial ("Continuar para o chat") that has
+// to be clicked through by hand on every single open, even when the reused
+// WHATSAPP_WEB_TARGET tab is already logged in — going straight to
+// web.whatsapp.com/send skips that hop and drops the tab right into the chat.
 export function getWhatsAppDirectUrl(phone: string, messageText?: string): string {
   const clean = cleanPhoneForWhatsApp(phone);
   const encodedText = messageText ? encodeURIComponent(messageText) : '';
-  return `https://wa.me/${clean}${encodedText ? `?text=${encodedText}` : ''}`;
+  return `https://web.whatsapp.com/send?phone=${clean}${encodedText ? `&text=${encodedText}` : ''}`;
 }
 
 // Fixed window/tab name shared by every "Abrir WhatsApp" link in the app.

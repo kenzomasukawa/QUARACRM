@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Building2,
@@ -86,6 +86,11 @@ export const CardModal: React.FC = () => {
   const [aiGeneratedText, setAiGeneratedText] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleText, setEditTitleText] = useState('');
+  const [valueInput, setValueInput] = useState('0');
+
+  useEffect(() => {
+    if (selectedCard) setValueInput(String(selectedCard.value ?? 0));
+  }, [selectedCard?.id]);
 
   // AI Suite Tabs & Data
   const [aiSubTab, setAiSubTab] = useState<'copywriter' | 'deal_health' | 'meeting' | 'copilot'>('copywriter');
@@ -421,8 +426,9 @@ export const CardModal: React.FC = () => {
               <span className="text-[11px]">Valor:</span>
               <input
                 type="number"
-                value={selectedCard.value}
-                onChange={(e) => updateCard(selectedCard.id, { value: parseFloat(e.target.value) || 0 })}
+                value={valueInput}
+                onChange={(e) => setValueInput(e.target.value)}
+                onBlur={() => updateCard(selectedCard.id, { value: parseFloat(valueInput) || 0 })}
                 className="w-24 bg-neutral-900 text-white px-2 py-0.5 rounded border border-neutral-800 text-xs font-semibold focus:outline-none"
               />
             </div>
