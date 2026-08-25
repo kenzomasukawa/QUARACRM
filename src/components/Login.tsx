@@ -25,14 +25,14 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-100 dark:bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f4f6f8] dark:bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 dark:from-red-700 dark:to-neutral-950 flex items-center justify-center text-white font-black text-xl shadow-lg border border-red-500/30 dark:border-red-900/60 mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500 hover:bg-rose-600 transition-colors flex items-center justify-center text-white font-black text-xl shadow-lg border border-rose-400/30 mb-3">
             Q
           </div>
           <h1 className="font-black text-2xl text-neutral-900 dark:text-white tracking-tight">
-            Quara<span className="text-red-600 dark:text-red-500">CRM</span>
+            quara<span className="text-rose-500">crm</span>
           </h1>
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Gestão Comercial &amp; Pipeline</p>
         </div>
@@ -71,7 +71,7 @@ export const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="voce@suaempresa.com.br"
-                className="w-full pl-9 pr-3 py-2.5 text-sm bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-neutral-900 dark:text-neutral-100 outline-none transition"
+                className="w-full pl-9 pr-3 py-2.5 text-sm bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-neutral-900 dark:text-neutral-100 outline-none transition"
               />
             </div>
           </div>
@@ -89,13 +89,13 @@ export const Login: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2.5 text-sm bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-neutral-900 dark:text-neutral-100 outline-none transition"
+                className="w-full pl-9 pr-3 py-2.5 text-sm bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-neutral-900 dark:text-neutral-100 outline-none transition"
               />
             </div>
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-[11px] text-red-700 dark:text-red-300 flex gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-[11px] text-rose-700 dark:text-rose-300 flex gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -104,7 +104,7 @@ export const Login: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting || !isConfigured}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 dark:bg-red-700 dark:hover:bg-red-600 text-white text-sm font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white text-sm font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting ? (
               <>

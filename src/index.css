@@ -1,3 +1,52 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --primary-light-red: #f43f5e;
+    --primary-light-red-hover: #e11d48;
+    --primary-light-red-subtle: #fff1f2;
+    --primary-light-red-border: #fecdd3;
+    --primary-light-red-text: #be123c;
+  }
+
+  body {
+    @apply bg-[#f4f6f8] text-neutral-900 font-sans antialiased;
+  }
+}
+
+/* Pipefy Smooth Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.4);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.6);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

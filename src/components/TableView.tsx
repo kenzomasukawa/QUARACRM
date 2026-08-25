@@ -100,7 +100,7 @@ export const TableView: React.FC = () => {
           <select
             value={selectedPhaseFilter}
             onChange={(e) => setSelectedPhaseFilter(e.target.value)}
-            className="px-3 py-1.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-300 font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            className="px-3 py-1.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-300 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20"
           >
             <option value="all">📂 Todas as 12 Fases</option>
             {phases.map((p) => (
@@ -114,7 +114,7 @@ export const TableView: React.FC = () => {
           <select
             value={activeFilterConsultant}
             onChange={(e) => setActiveFilterConsultant(e.target.value)}
-            className="px-3 py-1.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-300 font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            className="px-3 py-1.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-300 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20"
           >
             <option value="all">👤 Todos Consultores</option>
             {users.map((u) => (
@@ -128,7 +128,7 @@ export const TableView: React.FC = () => {
           <select
             value={activePriorityFilter}
             onChange={(e) => setActivePriorityFilter(e.target.value)}
-            className="px-3 py-1.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-300 font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20"
+            className="px-3 py-1.5 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-300 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20"
           >
             <option value="all">⚡ Prioridade: Todas</option>
             <option value="urgente">Urgente</option>
@@ -143,7 +143,7 @@ export const TableView: React.FC = () => {
             onClick={() => exportCardsToCSV(sortedCards, phases, users)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-neutral-700 dark:text-neutral-300 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+            <Download className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
             <span>Exportar CSV ({sortedCards.length})</span>
           </button>
         </div>
@@ -209,7 +209,7 @@ export const TableView: React.FC = () => {
                   >
                     <td className="p-3.5 font-mono font-bold text-neutral-400 dark:text-neutral-500">{card.id}</td>
                     <td className="p-3.5">
-                      <p className="font-bold text-neutral-900 dark:text-neutral-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                      <p className="font-bold text-neutral-900 dark:text-neutral-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                         {card.title}
                       </p>
                       <p className="text-[11px] text-neutral-500 dark:text-neutral-400 font-medium">{card.companyName}</p>
@@ -227,7 +227,7 @@ export const TableView: React.FC = () => {
                         ))}
                       </select>
                     </td>
-                    <td className="p-3.5 font-bold text-red-600 dark:text-red-400">
+                    <td className="p-3.5 font-bold text-rose-600 dark:text-rose-400">
                       {card.value > 0 ? formatCurrency(card.value) : '-'}
                     </td>
                     <td className="p-3.5">
@@ -261,7 +261,7 @@ export const TableView: React.FC = () => {
                           e.stopPropagation();
                           setSelectedCard(card);
                         }}
-                        className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg transition-colors font-semibold cursor-pointer"
+                        className="p-1.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors font-semibold cursor-pointer"
                       >
                         <Eye className="w-4 h-4" />
                       </button>

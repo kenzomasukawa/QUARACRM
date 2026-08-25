@@ -47,7 +47,7 @@ const MainLayout: React.FC = () => {
   const { theme } = useCRM();
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''} bg-neutral-100 dark:bg-black text-neutral-900 dark:text-neutral-100 font-sans antialiased selection:bg-red-600 selection:text-white transition-colors duration-200`}>
+    <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''} bg-[#f4f6f8] dark:bg-black text-neutral-900 dark:text-neutral-100 font-sans antialiased selection:bg-rose-500 selection:text-white transition-colors duration-200`}>
       <Header />
       <MainContent />
     </div>
@@ -59,8 +59,8 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-neutral-100 dark:bg-black flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-red-600 dark:text-red-500 animate-spin" />
+      <div className="min-h-screen bg-[#f4f6f8] dark:bg-black flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-rose-500 animate-spin" />
       </div>
     );
   }

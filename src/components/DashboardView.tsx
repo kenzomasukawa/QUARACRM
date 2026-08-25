@@ -63,7 +63,7 @@ export const DashboardView: React.FC = () => {
 
         <button
           onClick={() => exportConsultantReportToCSV(users, cards)}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
           <Download className="w-4 h-4" />
           <span>Exportar Relatório de Consultores (CSV)</span>
@@ -76,7 +76,7 @@ export const DashboardView: React.FC = () => {
         <div className="p-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-2xs">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Pipeline em Aberto</span>
-            <div className="p-2 bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 rounded-lg">
+            <div className="p-2 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
@@ -114,14 +114,14 @@ export const DashboardView: React.FC = () => {
         <div className="p-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-2xs">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Meta Geral da Equipe</span>
-            <div className="p-2 bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 rounded-lg">
+            <div className="p-2 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg">
               <Target className="w-4 h-4" />
             </div>
           </div>
           <div className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{teamGoalPercent}%</div>
           <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2 mt-2 overflow-hidden">
             <div
-              className="bg-red-600 dark:bg-red-500 h-full rounded-full transition-all duration-500"
+              className="bg-rose-600 dark:bg-rose-500 h-full rounded-full transition-all duration-500"
               style={{ width: `${Math.min(100, parseFloat(teamGoalPercent))}%` }}
             />
           </div>
@@ -138,7 +138,7 @@ export const DashboardView: React.FC = () => {
             <h3 className="font-bold text-sm text-neutral-900 dark:text-neutral-100">Desempenho & Metas Individuais por Consultor</h3>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">Volume de leads, taxa de fechamento e atingimento da meta mensal</p>
           </div>
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold flex items-center gap-1">
+          <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
             <Award className="w-4 h-4" /> Ranking em Tempo Real
           </span>
         </div>
@@ -201,7 +201,7 @@ export const DashboardView: React.FC = () => {
                       <td className="p-3.5">
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[11px] font-bold">
-                            <span className={percentAchieved >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                            <span className={percentAchieved >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                               {percentAchieved.toFixed(1)}%
                             </span>
                           </div>
@@ -211,7 +211,7 @@ export const DashboardView: React.FC = () => {
                                 percentAchieved >= 100
                                   ? 'bg-emerald-500'
                                   : percentAchieved >= 60
-                                  ? 'bg-red-600 dark:bg-red-500'
+                                  ? 'bg-rose-600 dark:bg-rose-500'
                                   : 'bg-amber-500'
                               }`}
                               style={{ width: `${percentAchieved}%` }}
