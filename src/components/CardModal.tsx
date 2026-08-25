@@ -50,7 +50,6 @@ import {
   analyzeDealHealth,
   extractMeetingInsights,
   chatWithSalesCopilot,
-  isGeminiConfigured,
 } from '../services/geminiService';
 import { sendWhatsAppViaApi, sendEmailViaApi } from '../services/apiIntegrationsService';
 
@@ -1087,9 +1086,7 @@ export const CardModal: React.FC = () => {
                       Inteligência Comercial QuaraCRM • Google Gemini
                     </span>
                     <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                      {isGeminiConfigured()
-                        ? 'Google AI Studio conectado e ativo com respostas em tempo real.'
-                        : 'Modo inteligente ativo. Conecte sua chave do Google AI Studio para IA generativa em tempo real.'}
+                      Respostas via Google AI Studio quando configurado no servidor, com fallback inteligente local.
                     </p>
                   </div>
                 </div>

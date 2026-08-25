@@ -1,7 +1,6 @@
-import { CRMCard, PhaseId, User } from '../types/crm';
+import { CRMCard, User } from '../types/crm';
 import { supabase } from '../lib/supabase';
 
-const STORAGE_KEY_GEMINI_KEY = 'quaracrm_gemini_api_key';
 const STORAGE_KEY_GEMINI_MODEL = 'quaracrm_gemini_model';
 
 /**
@@ -16,17 +15,6 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
-export function getGeminiApiKey(): string {
-  const metaEnv = (import.meta as any).env || {};
-  const envKey = (metaEnv.VITE_GEMINI_API_KEY as string) || '';
-  const localKey = localStorage.getItem(STORAGE_KEY_GEMINI_KEY) || '';
-  return (envKey || localKey).trim();
-}
-
-export function saveGeminiApiKey(key: string): void {
-  localStorage.setItem(STORAGE_KEY_GEMINI_KEY, key.trim());
-}
-
 export function getGeminiModel(): string {
   return localStorage.getItem(STORAGE_KEY_GEMINI_MODEL) || 'gemini-2.5-flash';
 }
@@ -35,151 +23,57 @@ export function saveGeminiModel(model: string): void {
   localStorage.setItem(STORAGE_KEY_GEMINI_MODEL, model);
 }
 
-export function isGeminiConfigured(): boolean {
-  // Configured if server-side proxy exists or client key is set
-  const key = getGeminiApiKey();
-  return Boolean(key && key.length > 15) || true;
-}
-
 /**
- * Call Google Gemini AI with prioritized secure server-side proxy (/api/integrations/gemini)
- * so GEMINI_API_KEY never leaks into client-side bundles.
+ * Call Google Gemini AI exclusively through the secure server-side proxy
+ * (/api/integrations/gemini) so GEMINI_API_KEY never leaves the Vercel
+ * server environment or reaches the client-side bundle.
  */
 async function callGeminiApi(prompt: string, systemInstruction?: string): Promise<string> {
   const model = getGeminiModel();
+  const headers = await getAuthHeaders();
+  const serverRes = await fetch('/api/integrations/gemini', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      prompt,
+      systemInstruction,
+      model,
+    }),
+  });
 
-  // 1. Try secure server-side proxy
+  const serverData = await serverRes.json().catch(() => ({}));
+
+  if (serverRes.ok && serverData.success && serverData.text) {
+    return serverData.text;
+  }
+
+  throw new Error(serverData.message || 'Serviço de IA não configurado no servidor.');
+}
+
+/**
+ * Test the Gemini server-side proxy connection.
+ */
+export async function testGeminiConnection(): Promise<{ success: boolean; message: string }> {
+  const model = getGeminiModel();
+
   try {
     const headers = await getAuthHeaders();
     const serverRes = await fetch('/api/integrations/gemini', {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        prompt,
-        systemInstruction,
+        prompt: 'Responda apenas: OK',
         model,
       }),
     });
 
-    if (serverRes.ok) {
-      const serverData = await serverRes.json();
-      if (serverData.success && serverData.text) {
-        return serverData.text;
-      }
-      if (serverData.configured === false) {
-        // Fallback to local key if server has not configured GEMINI_API_KEY yet
-      }
+    const serverData = await serverRes.json().catch(() => ({}));
+    if (serverRes.ok && serverData.success) {
+      return { success: true, message: `Conexão segura com Google AI Studio (${model}) via servidor confirmada!` };
     }
-  } catch {
-    // Fallback to direct client call if running in offline local dev without serverless api
-  }
-
-  // 2. Direct client fallback (only if local key is explicitly provided in offline dev)
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    throw new Error('Serviço de IA não configurado no servidor ou chave local ausente.');
-  }
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-  const bodyPayload: Record<string, any> = {
-    contents: [
-      {
-        parts: [{ text: prompt }],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 2048,
-    },
-  };
-
-  if (systemInstruction) {
-    bodyPayload.systemInstruction = {
-      parts: [{ text: systemInstruction }],
-    };
-  }
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(bodyPayload),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData?.error?.message || `Erro ${response.status}: ${response.statusText}`;
-    throw new Error(`Google AI Studio: ${message}`);
-  }
-
-  const data = await response.json();
-  const candidate = data.candidates?.[0];
-  const text = candidate?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error('Nenhuma resposta gerada pelo modelo Gemini.');
-  }
-
-  return text;
-}
-
-/**
- * Test Gemini API Connection (server proxy or local key)
- */
-export async function testGeminiConnection(customKey?: string): Promise<{ success: boolean; message: string }> {
-  const model = getGeminiModel();
-
-  // Test server-side proxy first if no custom key passed
-  if (!customKey) {
-    try {
-      const headers = await getAuthHeaders();
-      const serverRes = await fetch('/api/integrations/gemini', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          prompt: 'Responda apenas: OK',
-          model,
-        }),
-      });
-
-      if (serverRes.ok) {
-        const serverData = await serverRes.json();
-        if (serverData.success) {
-          return { success: true, message: `Conexão segura com Google AI Studio (${model}) via servidor confirmada!` };
-        }
-      }
-    } catch {
-      // ignore and test local key
-    }
-  }
-
-  const key = customKey || getGeminiApiKey();
-  if (!key) {
-    return { success: false, message: 'Chave de API não configurada.' };
-  }
-
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: 'Responda apenas: OK' }] }],
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      return { success: false, message: err?.error?.message || 'Chave inválida ou erro na API.' };
-    }
-
-    return { success: true, message: `Conexão bem-sucedida com Google AI Studio (${model})!` };
+    return { success: false, message: serverData.message || 'GEMINI_API_KEY não configurada no servidor.' };
   } catch (err: any) {
-    return { success: false, message: err.message || 'Falha de conexão com a API do Google.' };
+    return { success: false, message: err.message || 'Falha de conexão com o servidor.' };
   }
 }
 
@@ -223,15 +117,13 @@ DADOS DO LEAD:
 
   const prompt = `${leadContext}\n\nOBJETIVO DA IA:\n${promptGoal}\n${customInstructions ? `Instruções adicionais do consultor: ${customInstructions}` : ''}\n\nEscreva em português brasileiro fluido, profissional, objetivo e persuasivo.`;
 
-  if (isGeminiConfigured()) {
-    try {
-      return await callGeminiApi(
-        prompt,
-        'Você é o consultor sênior de inteligência comercial do QuaraCRM. Gere copys de altíssima conversão para vendedores consultivos B2B e B2C.'
-      );
-    } catch (err: any) {
-      console.warn('Fallback para gerador local de IA:', err);
-    }
+  try {
+    return await callGeminiApi(
+      prompt,
+      'Você é o consultor sênior de inteligência comercial do QuaraCRM. Gere copys de altíssima conversão para vendedores consultivos B2B e B2C.'
+    );
+  } catch (err: any) {
+    console.warn('Fallback para gerador local de IA:', err);
   }
 
   // Smart Fallback when no API Key is set yet
@@ -282,21 +174,19 @@ DADOS DA OPORTUNIDADE:
 - Mensagens registradas: ${lead.messages.length}
 `;
 
-  if (isGeminiConfigured()) {
-    try {
-      const rawJson = await callGeminiApi(prompt, 'Você é um algoritmo preditivo de vendas B2B que calcula probabilidade de vitória de negociações.');
-      const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      return {
-        winProbability: Math.min(100, Math.max(5, Number(parsed.winProbability) || 60)),
-        healthStatus: parsed.healthStatus || (parsed.winProbability > 70 ? 'excelente' : parsed.winProbability > 40 ? 'moderado' : 'risco'),
-        strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['Lead qualificado com interesse declarado'],
-        risks: Array.isArray(parsed.risks) ? parsed.risks : ['Acompanhar tempo de resposta do decisor'],
-        recommendedStrategy: parsed.recommendedStrategy || 'Agendar reunião com tomadores de decisão para validar cronograma.',
-      };
-    } catch (err) {
-      console.warn('Fallback no Deal Health AI:', err);
-    }
+  try {
+    const rawJson = await callGeminiApi(prompt, 'Você é um algoritmo preditivo de vendas B2B que calcula probabilidade de vitória de negociações.');
+    const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      winProbability: Math.min(100, Math.max(5, Number(parsed.winProbability) || 60)),
+      healthStatus: parsed.healthStatus || (parsed.winProbability > 70 ? 'excelente' : parsed.winProbability > 40 ? 'moderado' : 'risco'),
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['Lead qualificado com interesse declarado'],
+      risks: Array.isArray(parsed.risks) ? parsed.risks : ['Acompanhar tempo de resposta do decisor'],
+      recommendedStrategy: parsed.recommendedStrategy || 'Agendar reunião com tomadores de decisão para validar cronograma.',
+    };
+  } catch (err) {
+    console.warn('Fallback no Deal Health AI:', err);
   }
 
   // Heuristic estimation fallback
@@ -361,14 +251,12 @@ ${rawNotesOrTranscript}
 """
 `;
 
-  if (isGeminiConfigured()) {
-    try {
-      const rawJson = await callGeminiApi(prompt, 'Você é um assistente executivo de vendas especialista em transcrição e análise de reuniões comerciais.');
-      const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleaned);
-    } catch (err) {
-      console.warn('Fallback no extrator de reunião:', err);
-    }
+  try {
+    const rawJson = await callGeminiApi(prompt, 'Você é um assistente executivo de vendas especialista em transcrição e análise de reuniões comerciais.');
+    const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch (err) {
+    console.warn('Fallback no extrator de reunião:', err);
   }
 
   // Heuristic Fallback
@@ -411,15 +299,13 @@ CONTEXTO DO LEAD NO CRM:
 
   const prompt = `${context}\n\nHISTÓRICO DA CONVERSA:\n${conversationFormatted}\n\nConsultor Comercial: ${userMessage}\n\nCopilot IA (responda de forma prática, estratégica e direta para ajudar o vendedor a fechar esta oportunidade):`;
 
-  if (isGeminiConfigured()) {
-    try {
-      return await callGeminiApi(
-        prompt,
-        'Você é o Copilot de Vendas QuaraCRM alimentado pelo Google Gemini. Você é especialista em negociação de alto nível, fechamento de contratos, spin selling e vendas consultivas.'
-      );
-    } catch (err: any) {
-      console.warn('Fallback chat copilot:', err);
-    }
+  try {
+    return await callGeminiApi(
+      prompt,
+      'Você é o Copilot de Vendas QuaraCRM alimentado pelo Google Gemini. Você é especialista em negociação de alto nível, fechamento de contratos, spin selling e vendas consultivas.'
+    );
+  } catch (err: any) {
+    console.warn('Fallback chat copilot:', err);
   }
 
   // Fallback response

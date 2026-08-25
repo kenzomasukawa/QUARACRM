@@ -108,6 +108,7 @@ DROP POLICY IF EXISTS "Users can view own leads" ON leads;
 DROP POLICY IF EXISTS "Users can insert own leads" ON leads;
 DROP POLICY IF EXISTS "Users can update own leads" ON leads;
 DROP POLICY IF EXISTS "Users can delete own leads" ON leads;
+DROP POLICY IF EXISTS "Users can delete own or team leads" ON leads;
 
 -- Users can only read their own role row; role changes are made from the
 -- Supabase SQL editor / dashboard (service role), never from the client,
@@ -138,8 +139,11 @@ CREATE POLICY "Users can insert own or team leads" ON leads
 CREATE POLICY "Users can update own or team leads" ON leads
   FOR UPDATE USING (auth.uid()::text = assigned_user_id OR public.has_team_visibility())
   WITH CHECK (auth.uid()::text = assigned_user_id OR public.has_team_visibility());
-CREATE POLICY "Users can delete own or team leads" ON leads
-  FOR DELETE USING (auth.uid()::text = assigned_user_id OR public.has_team_visibility());
+-- Deletion is restricted to admin/manager to match the app's RBAC gate on
+-- deleteCard() — a plain consultant must not be able to delete their own
+-- lead directly via the Supabase client, bypassing the UI check.
+CREATE POLICY "Only admin or manager can delete leads" ON leads
+  FOR DELETE USING (public.has_team_visibility());
 
 DROP POLICY IF EXISTS "Allow public read interactions" ON lead_interactions;
 DROP POLICY IF EXISTS "Allow public insert interactions" ON lead_interactions;

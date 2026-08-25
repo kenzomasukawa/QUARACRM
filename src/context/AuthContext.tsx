@@ -105,6 +105,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
     setSession(null);
     setUserRole('consultant');
+    try {
+      // Wipe the previous user's pipeline data cached in localStorage so it
+      // isn't visible to the next person who signs in on this device.
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith('quaracrm_app_v2_') || key.startsWith('pipecrm_app_v2_'))
+        .forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // localStorage unavailable (e.g. private browsing) — nothing to clear
+    }
   };
 
   return (

@@ -6,12 +6,8 @@ import {
   Zap,
   CheckCircle2,
   XCircle,
-  ExternalLink,
   ShieldCheck,
   RefreshCw,
-  Eye,
-  EyeOff,
-  Cpu,
   Layers,
   Globe,
   Radio,
@@ -20,11 +16,8 @@ import {
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import {
-  getGeminiApiKey,
-  saveGeminiApiKey,
   getGeminiModel,
   saveGeminiModel,
-  isGeminiConfigured,
   testGeminiConnection,
 } from '../services/geminiService';
 import {
@@ -48,9 +41,7 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ isOpen, on
   const [activeTab, setActiveTab] = useState<'gemini' | 'whatsapp' | 'email' | 'apollo'>('gemini');
 
   // Gemini State
-  const [geminiKey, setGeminiKey] = useState(getGeminiApiKey());
   const [geminiModel, setGeminiModel] = useState(getGeminiModel());
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [isTestingGemini, setIsTestingGemini] = useState(false);
   const [geminiStatus, setGeminiStatus] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -69,11 +60,10 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ isOpen, on
 
   const handleSaveGemini = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveGeminiApiKey(geminiKey);
     saveGeminiModel(geminiModel);
     setIsTestingGemini(true);
     setGeminiStatus(null);
-    const result = await testGeminiConnection(geminiKey);
+    const result = await testGeminiConnection();
     setIsTestingGemini(false);
     setGeminiStatus(result);
   };
@@ -202,78 +192,31 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ isOpen, on
                     </div>
                   </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
-                    Google AI Studio API Key
-                  </label>
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-red-600 dark:text-red-400 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    <span>Obter chave gratuita no Google AI Studio</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-
-                <div className="relative">
-                  <input
-                    type={showGeminiKey ? 'text' : 'password'}
-                    placeholder="AIzaSy..."
-                    value={geminiKey}
-                    onChange={(e) => setGeminiKey(e.target.value)}
-                    className="w-full pl-3.5 pr-10 py-2.5 text-sm bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-neutral-900 dark:text-neutral-100 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowGeminiKey(!showGeminiKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer"
-                  >
-                    {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
-                  Também pode ser configurada via arquivo <code className="bg-neutral-200 dark:bg-neutral-800 px-1 py-0.5 rounded font-mono">.env</code> como <code className="bg-neutral-200 dark:bg-neutral-800 px-1 py-0.5 rounded font-mono">VITE_GEMINI_API_KEY</code>.
-                </p>
+              <div className="p-3.5 bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-xl text-[11px] text-neutral-600 dark:text-neutral-400 flex items-start gap-2.5">
+                <Lock className="w-4 h-4 text-neutral-400 shrink-0 mt-0.5" />
+                <span>
+                  Por segurança, a API Key do Google AI Studio não fica salva no navegador. Configure{' '}
+                  <code className="bg-white dark:bg-black px-1 py-0.5 rounded font-mono">GEMINI_API_KEY</code> nas variáveis de
+                  ambiente do servidor (Vercel → Project Settings → Environment Variables). O envio passa pelo endpoint{' '}
+                  <code className="bg-white dark:bg-black px-1 py-0.5 rounded font-mono">/api/integrations/gemini</code>, que só
+                  aceita chamadas de usuários autenticados. Sem essa variável, os recursos de IA usam automaticamente um
+                  gerador heurístico local.
+                </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                    Modelo de Inteligência Artificial
-                  </label>
-                  <select
-                    value={geminiModel}
-                    onChange={(e) => setGeminiModel(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-red-500 text-neutral-900 dark:text-neutral-100 font-semibold"
-                  >
-                    <option value="gemini-2.5-flash">⚡ Gemini 2.5 Flash (Recomendado - Ultrarrápido)</option>
-                    <option value="gemini-2.5-pro">🧠 Gemini 2.5 Pro (Raciocínio Comercial Avançado)</option>
-                    <option value="gemini-2.0-flash">🚀 Gemini 2.0 Flash</option>
-                  </select>
-                </div>
-
-                <div className="p-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] text-neutral-400 block font-medium">Status da IA</span>
-                    <span className="text-xs font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5 mt-0.5">
-                      {isGeminiConfigured() ? (
-                        <>
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-emerald-600 dark:text-emerald-400">Ativo no QuaraCRM</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="w-2 h-2 rounded-full bg-amber-500" />
-                          <span className="text-amber-600 dark:text-amber-400">Modo Simulado / Demonstrativo</span>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  <Cpu className="w-6 h-6 text-red-600 dark:text-red-500 opacity-80" />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
+                  Modelo de Inteligência Artificial
+                </label>
+                <select
+                  value={geminiModel}
+                  onChange={(e) => setGeminiModel(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-red-500 text-neutral-900 dark:text-neutral-100 font-semibold"
+                >
+                  <option value="gemini-2.5-flash">⚡ Gemini 2.5 Flash (Recomendado - Ultrarrápido)</option>
+                  <option value="gemini-2.5-pro">🧠 Gemini 2.5 Pro (Raciocínio Comercial Avançado)</option>
+                  <option value="gemini-2.0-flash">🚀 Gemini 2.0 Flash</option>
+                </select>
               </div>
 
               {geminiStatus && (
