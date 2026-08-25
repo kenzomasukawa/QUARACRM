@@ -1,10 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseEnvConfigured } from '../lib/supabase';
+import { UserRole } from '../types/crm';
 
 interface AuthContextType {
   session: Session | null;
   authUser: SupabaseUser | null;
+  userRole: UserRole;
+  refreshUserRole: () => Promise<void>;
   isLoading: boolean;
   isConfigured: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -15,7 +18,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('consultant');
   const [isLoading, setIsLoading] = useState(true);
+
+  const loadUserRole = useCallback(async (userId: string) => {
+    if (!isSupabaseEnvConfigured || !userId) {
+      setUserRole('consultant');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!error && data?.role) {
+        setUserRole(data.role as UserRole);
+      } else {
+        setUserRole('consultant');
+      }
+    } catch {
+      setUserRole('consultant');
+    }
+  }, []);
+
+  const refreshUserRole = useCallback(async () => {
+    if (session?.user?.id) {
+      await loadUserRole(session.user.id);
+    }
+  }, [session?.user?.id, loadUserRole]);
 
   useEffect(() => {
     if (!isSupabaseEnvConfigured) {
@@ -25,18 +58,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      setIsLoading(false);
+      if (data.session?.user?.id) {
+        loadUserRole(data.session.user.id).finally(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
+      }
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      setIsLoading(false);
+      if (newSession?.user?.id) {
+        loadUserRole(newSession.user.id).finally(() => setIsLoading(false));
+      } else {
+        setUserRole('consultant');
+        setIsLoading(false);
+      }
     });
 
     return () => {
       subscription.subscription.unsubscribe();
     };
-  }, []);
+  }, [loadUserRole]);
 
   const signIn = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     if (!isSupabaseEnvConfigured) {
@@ -53,12 +95,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setSession(data.session);
+    if (data.session?.user?.id) {
+      await loadUserRole(data.session.user.id);
+    }
     return { success: true, message: 'Login realizado com sucesso!' };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
+    setUserRole('consultant');
   };
 
   return (
@@ -66,6 +112,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         session,
         authUser: session?.user || null,
+        userRole,
+        refreshUserRole,
         isLoading,
         isConfigured: isSupabaseEnvConfigured,
         signIn,

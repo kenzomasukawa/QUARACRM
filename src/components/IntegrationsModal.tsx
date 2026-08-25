@@ -18,6 +18,7 @@ import {
   Send,
   Lock,
 } from 'lucide-react';
+import { useCRM } from '../context/CRMContext';
 import {
   getGeminiApiKey,
   saveGeminiApiKey,
@@ -43,6 +44,7 @@ interface IntegrationsModalProps {
 }
 
 export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ isOpen, onClose }) => {
+  const { currentUser } = useCRM();
   const [activeTab, setActiveTab] = useState<'gemini' | 'whatsapp' | 'email' | 'apollo'>('gemini');
 
   // Gemini State
@@ -173,20 +175,32 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ isOpen, on
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-neutral-50/50 dark:bg-neutral-950/50">
-          {/* TAB 1: GOOGLE AI STUDIO (GEMINI) */}
-          {activeTab === 'gemini' && (
-            <form onSubmit={handleSaveGemini} className="space-y-4">
-              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl p-4 text-xs flex gap-3 text-neutral-800 dark:text-neutral-200">
-                <ShieldCheck className="w-5 h-5 text-red-600 dark:text-red-500 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-bold text-neutral-900 dark:text-neutral-100 mb-1">
-                    Google AI Studio — Inteligência Comercial Integrada
-                  </h4>
-                  <p className="leading-relaxed text-neutral-700 dark:text-neutral-300">
-                    O QuaraCRM utiliza os modelos <strong>Gemini 2.5 Flash / Pro</strong> para gerar copys de vendas instantâneas, calcular probabilidade de fechamento (% score de vitória), transcrever atas de reuniões e atuar como Copilot estratégico nos seus cards.
-                  </p>
-                </div>
+          {currentUser.role !== 'admin' && currentUser.role !== 'manager' ? (
+            <div className="p-8 bg-white dark:bg-neutral-900 border border-red-200 dark:border-red-900/40 rounded-2xl shadow-sm text-center space-y-3 my-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6" />
               </div>
+              <h3 className="text-base font-bold text-neutral-900 dark:text-white">Gerenciamento Restrito de Integrações e APIs</h3>
+              <p className="text-xs text-neutral-600 dark:text-neutral-400 max-w-md mx-auto leading-relaxed">
+                Por motivos de segurança e sigilo de credenciais, a visualização e edição de chaves de API, webhooks e credenciais de mensageria são restritas a Administradores e Gestores.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* TAB 1: GOOGLE AI STUDIO (GEMINI) */}
+              {activeTab === 'gemini' && (
+                <form onSubmit={handleSaveGemini} className="space-y-4">
+                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl p-4 text-xs flex gap-3 text-neutral-800 dark:text-neutral-200">
+                    <ShieldCheck className="w-5 h-5 text-red-600 dark:text-red-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+                        Google AI Studio — Inteligência Comercial Integrada
+                      </h4>
+                      <p className="leading-relaxed text-neutral-700 dark:text-neutral-300">
+                        O QuaraCRM utiliza os modelos <strong>Gemini 2.5 Flash / Pro</strong> para gerar copys de vendas instantâneas, calcular probabilidade de fechamento (% score de vitória), transcrever atas de reuniões e atuar como Copilot estratégico nos seus cards.
+                      </p>
+                    </div>
+                  </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -521,7 +535,9 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ isOpen, on
               </div>
             </div>
           )}
-        </div>
+        </>
+      )}
+    </div>
 
         {/* Footer */}
         <div className="px-6 py-3.5 bg-neutral-100 dark:bg-neutral-950 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-400">

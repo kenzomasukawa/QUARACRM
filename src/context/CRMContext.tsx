@@ -163,9 +163,7 @@ const STORAGE_KEY_PREFIX = 'quaracrm_app_v2_';
 const LEGACY_STORAGE_PREFIX = 'pipecrm_app_v2_';
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Authenticated Supabase user — the real identity behind assigned_user_id / RLS.
-  // App.tsx only mounts CRMProvider once a session exists, so this is always set.
-  const { authUser } = useAuth();
+  const { authUser, userRole } = useAuth();
   const consultorId = authUser?.id || '';
 
   // Theme Management (Dark Mode: Black & Dark Red / Light Mode: White & Red)
@@ -323,10 +321,56 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     totalLostCount: 0,
   });
 
-  // Active current user
-  const currentUser = users.find((u) => u.id === currentUserId) || users[0];
+  // Active current user bound to authenticated identity and real Supabase role
+  const currentUser: User = React.useMemo(() => {
+    if (isSupabaseEnvConfigured && authUser) {
+      const email = authUser.email || '';
+      const name = authUser.user_metadata?.name || email.split('@')[0] || 'Usuário';
+      const role = userRole || 'consultant';
+      return {
+        id: authUser.id,
+        name,
+        email,
+        role,
+        avatar:
+          authUser.user_metadata?.avatar_url ||
+          (role === 'admin'
+            ? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
+            : role === 'manager'
+            ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'),
+        phone: authUser.phone || '',
+        active: true,
+        department:
+          role === 'admin'
+            ? 'Diretoria Executiva'
+            : role === 'manager'
+            ? 'Gestão Comercial'
+            : role === 'viewer'
+            ? 'Auditoria & Diretoria'
+            : 'Consultoria Comercial',
+        monthlyGoalValue: 80000,
+        monthlyGoalLeads: 4,
+        currentMonthWonValue: 0,
+        currentMonthWonCount: 0,
+        permissions: {
+          canExport: role === 'admin' || role === 'manager',
+          canEditAutomations: role === 'admin' || role === 'manager',
+          canViewAllLeads: role === 'admin' || role === 'manager' || role === 'viewer',
+          canEditPhaseFields: role === 'admin',
+          canManageUsers: role === 'admin',
+          canDeleteCards: role === 'admin' || role === 'manager',
+        },
+      };
+    }
+    return users.find((u) => u.id === currentUserId) || users[0];
+  }, [authUser, userRole, users, currentUserId]);
 
   const setCurrentUserId = (id: string) => {
+    // In authenticated mode with Supabase, roles and identity are securely tied to the session
+    if (isSupabaseEnvConfigured && authUser) {
+      return;
+    }
     setCurrentUserIdState(id);
     localStorage.setItem(STORAGE_KEY_PREFIX + 'current_user_id', id);
   };
@@ -888,6 +932,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteCard = async (id: string) => {
+    if (!currentUser.permissions?.canDeleteCards && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+      alert('Acesso negado: Você não possui permissão para excluir oportunidades.');
+      addAuditLog('unauthorized_access' as any, `Tentativa não autorizada de exclusão do card ${id} por ${currentUser.name}.`, id);
+      return;
+    }
     const card = cards.find((c) => c.id === id);
     if (!card) return;
     setCards((prev) => prev.filter((c) => c.id !== id));
@@ -1088,13 +1137,21 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updatePhaseConfig = (phaseId: PhaseId, updates: Partial<PhaseConfig>) => {
+    if (!currentUser.permissions?.canEditPhaseFields && currentUser.role !== 'admin') {
+      alert('Acesso negado: Apenas administradores podem alterar configurações de fases.');
+      return;
+    }
     setPhases((prev) =>
       prev.map((p) => (p.id === phaseId ? { ...p, ...updates } : p))
     );
-    addAuditLog('phase_configured', `Configuração da fase ${phaseId} atualizada.`);
+    addAuditLog('phase_configured', `Configuração da fase ${phaseId} atualizada por ${currentUser.name}.`);
   };
 
   const addPhaseField = (phaseId: PhaseId, field: any) => {
+    if (!currentUser.permissions?.canEditPhaseFields && currentUser.role !== 'admin') {
+      alert('Acesso negado: Apenas administradores podem adicionar novos campos a fases.');
+      return;
+    }
     setPhases((prev) =>
       prev.map((p) => {
         if (p.id === phaseId) {
@@ -1106,7 +1163,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return p;
       })
     );
-    addAuditLog('phase_configured', `Novo campo personalizado "${field.label}" adicionado à fase ${phaseId}.`);
+    addAuditLog('phase_configured', `Novo campo personalizado "${field.label}" adicionado à fase ${phaseId} por ${currentUser.name}.`);
   };
 
   const markNotificationRead = (id: string) => {
@@ -1122,13 +1179,17 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const updateUserGoal = (userId: string, monthlyGoalValue: number, monthlyGoalLeads: number) => {
+    if (currentUser.role !== 'admin' && currentUser.role !== 'manager' && currentUser.id !== userId) {
+      alert('Acesso negado: Você não possui permissão para alterar metas de outros consultores.');
+      return;
+    }
     setUsers((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, monthlyGoalValue, monthlyGoalLeads } : u))
     );
     const targetUser = users.find((u) => u.id === userId);
     addAuditLog(
       'goals_updated',
-      `Metas individuais de ${targetUser?.name || 'usuário'} atualizadas para R$ ${monthlyGoalValue.toLocaleString('pt-BR')} e ${monthlyGoalLeads} fechamentos.`
+      `Metas individuais de ${targetUser?.name || 'usuário'} atualizadas para R$ ${monthlyGoalValue.toLocaleString('pt-BR')} e ${monthlyGoalLeads} fechamentos por ${currentUser.name}.`
     );
   };
 
@@ -1136,6 +1197,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     userId: string,
     permissions: Partial<NonNullable<User['permissions']>>
   ) => {
+    if (currentUser.role !== 'admin') {
+      alert('Acesso negado: Apenas administradores podem gerenciar permissões de acesso (RBAC).');
+      return;
+    }
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
@@ -1157,7 +1222,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return u;
       })
     );
-    addAuditLog('permissions_updated', `Permissões de acesso atualizadas para usuário ${userId}.`);
+    addAuditLog('permissions_updated', `Permissões de acesso atualizadas para usuário ${userId} por ${currentUser.name}.`);
   };
 
   const addUser = (userData: Omit<User, 'id'>) => {
@@ -1258,6 +1323,10 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetToDefaultData = () => {
+    if (currentUser.role !== 'admin') {
+      alert('Acesso negado: Apenas administradores podem redefinir os dados do sistema.');
+      return;
+    }
     setUsers(INITIAL_USERS);
     setPhases(INITIAL_PHASES);
     setCards(INITIAL_CARDS);
@@ -1271,7 +1340,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userName: currentUser.name,
         userRole: currentUser.role,
         action: 'database_reset',
-        details: 'Banco de dados restaurado para os dados iniciais padrão.',
+        details: 'Banco de dados restaurado para os dados iniciais padrão por ' + currentUser.name,
       },
       ...INITIAL_AUDIT_LOGS,
     ]);
@@ -1280,9 +1349,13 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearAllCards = () => {
+    if (currentUser.role !== 'admin') {
+      alert('Acesso negado: Apenas administradores podem limpar a base de dados.');
+      return;
+    }
     setCards([]);
     setSelectedCard(null);
-    addAuditLog('database_reset', 'Todos os cards foram removidos do banco.');
+    addAuditLog('database_reset', 'Todos os cards foram removidos do banco por ' + currentUser.name);
   };
 
   const storageInfo = getLocalStorageSizeKB();

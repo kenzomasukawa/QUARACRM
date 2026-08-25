@@ -11,6 +11,7 @@ import {
   Shield,
   Clock,
   ArrowRight,
+  Lock,
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { formatDate } from '../utils/formatters';
@@ -18,11 +19,26 @@ import { exportAuditLogsToCSV } from '../utils/exportUtils';
 import { AuditLogEntry } from '../types/crm';
 
 export const AuditLogView: React.FC = () => {
-  const { auditLogs, users } = useCRM();
+  const { auditLogs, users, currentUser } = useCRM();
 
   const [searchLog, setSearchLog] = useState('');
   const [selectedUserFilter, setSelectedUserFilter] = useState('all');
   const [selectedActionFilter, setSelectedActionFilter] = useState('all');
+
+  // RBAC Access Guard
+  if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+    return (
+      <div className="p-8 max-w-2xl mx-auto my-12 bg-white dark:bg-neutral-900 border border-red-200 dark:border-red-900/40 rounded-2xl shadow-xl text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+          <Lock className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Acesso Restrito à Trilha de Auditoria</h2>
+        <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-md mx-auto">
+          A visualização do registro cronológico de ações, mensagens e auditoria do sistema é restrita a administradores e gestores para garantir a conformidade e integridade dos dados da organização.
+        </p>
+      </div>
+    );
+  }
 
   const filteredLogs = auditLogs.filter((log) => {
     if (selectedUserFilter !== 'all' && log.userId !== selectedUserFilter) return false;

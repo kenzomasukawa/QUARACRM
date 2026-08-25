@@ -303,47 +303,75 @@ export const Header: React.FC<HeaderProps> = ({ activeTab: propActiveTab, setAct
             </button>
 
             {isUserDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl z-50 p-2">
-                {authUser?.email && (
-                  <div className="px-2.5 py-1.5 mb-1 text-[10px] text-neutral-400 dark:text-neutral-500 truncate">
-                    Conectado como <span className="font-semibold text-neutral-600 dark:text-neutral-300">{authUser.email}</span>
+              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl z-50 p-3 animate-in fade-in zoom-in-95 duration-100">
+                <div className="flex items-center gap-3 pb-3 border-b border-neutral-100 dark:border-neutral-800">
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="w-10 h-10 rounded-full object-cover ring-2 ring-red-500/30"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-neutral-900 dark:text-white truncate">{currentUser.name}</p>
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">{currentUser.email || authUser?.email}</p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      {getRoleBadge(currentUser.role)}
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 font-medium">
+                        {currentUser.department}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="py-2.5 space-y-1.5 text-[11px] border-b border-neutral-100 dark:border-neutral-800">
+                  <div className="flex items-center justify-between text-neutral-500 dark:text-neutral-400">
+                    <span>Nível de Acesso:</span>
+                    <span className="font-semibold text-neutral-700 dark:text-neutral-200 capitalize">{currentUser.role}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-neutral-500 dark:text-neutral-400">
+                    <span>Exportação de Dados:</span>
+                    <span className={`font-semibold ${currentUser.permissions?.canExport ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-400'}`}>
+                      {currentUser.permissions?.canExport ? 'Autorizado' : 'Restrito'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-neutral-500 dark:text-neutral-400">
+                    <span>Proteção da Sessão:</span>
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <Shield className="w-3 h-3" /> Supabase RLS
+                    </span>
+                  </div>
+                </div>
+
+                {!isSupabaseActive && (
+                  <div className="py-2 border-b border-neutral-100 dark:border-neutral-800">
+                    <div className="px-1 py-1 mb-1 text-[10px] text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Modo Demonstração (Offline)
+                    </div>
+                    <div className="space-y-0.5">
+                      {users.map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={() => {
+                            setCurrentUserId(u.id);
+                            setIsUserDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between p-1.5 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                            u.id === currentUser.id
+                              ? 'bg-red-50 dark:bg-red-950/60 text-red-900 dark:text-red-300 font-semibold'
+                              : 'hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full object-cover" />
+                            <span className="font-semibold text-neutral-800 dark:text-neutral-200 text-xs">{u.name}</span>
+                          </div>
+                          {getRoleBadge(u.role)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <div className="px-2.5 py-1.5 border-b border-neutral-100 dark:border-neutral-800 mb-1 flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400">Alternar Usuário</span>
-                  {getRoleBadge(currentUser.role)}
-                </div>
 
-                <div className="space-y-0.5">
-                  {users.map((u) => (
-                    <button
-                      key={u.id}
-                      onClick={() => {
-                        setCurrentUserId(u.id);
-                        setIsUserDropdownOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
-                        u.id === currentUser.id
-                          ? 'bg-red-50 dark:bg-red-950/60 text-red-900 dark:text-red-300 font-semibold'
-                          : 'hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full object-cover" />
-                        <div>
-                          <div className="font-semibold text-neutral-800 dark:text-neutral-200 text-xs">{u.name}</div>
-                          <div className="text-[10px] text-neutral-400">{u.department}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {getRoleBadge(u.role)}
-                        {u.id === currentUser.id && <UserCheck className="w-3 h-3 text-red-600 dark:text-red-400" />}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-1.5 pt-1.5 border-t border-neutral-100 dark:border-neutral-800">
+                <div className="mt-2 pt-1">
                   <button
                     id="btn-logout"
                     type="button"
@@ -351,10 +379,10 @@ export const Header: React.FC<HeaderProps> = ({ activeTab: propActiveTab, setAct
                       setIsUserDropdownOpen(false);
                       signOut();
                     }}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5" />
-                    Sair
+                    Sair com Segurança
                   </button>
                 </div>
               </div>
@@ -430,31 +458,35 @@ export const Header: React.FC<HeaderProps> = ({ activeTab: propActiveTab, setAct
           <span>Automações</span>
         </button>
 
-        <button
-          id="nav-tab-admin"
-          onClick={() => setActiveTab('admin')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'admin'
-              ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-400 bg-white/60 dark:bg-neutral-900/60'
-              : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5" />
-          <span>Admin</span>
-        </button>
+        {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
+          <button
+            id="nav-tab-admin"
+            onClick={() => setActiveTab('admin')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'admin'
+                ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-400 bg-white/60 dark:bg-neutral-900/60'
+                : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span>Admin</span>
+          </button>
+        )}
 
-        <button
-          id="nav-tab-audit"
-          onClick={() => setActiveTab('audit')}
-          className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'audit'
-              ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-400 bg-white/60 dark:bg-neutral-900/60'
-              : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Auditoria</span>
-        </button>
+        {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
+          <button
+            id="nav-tab-audit"
+            onClick={() => setActiveTab('audit')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'audit'
+                ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-400 bg-white/60 dark:bg-neutral-900/60'
+                : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Auditoria</span>
+          </button>
+        )}
       </div>
     </header>
   );

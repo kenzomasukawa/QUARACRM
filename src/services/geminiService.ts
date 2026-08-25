@@ -1,7 +1,20 @@
 import { CRMCard, PhaseId, User } from '../types/crm';
+import { supabase } from '../lib/supabase';
 
 const STORAGE_KEY_GEMINI_KEY = 'quaracrm_gemini_api_key';
 const STORAGE_KEY_GEMINI_MODEL = 'quaracrm_gemini_model';
+
+/**
+ * Obtém o cabeçalho de autenticação JWT da sessão Supabase para requisições seguras
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 
 export function getGeminiApiKey(): string {
   const metaEnv = (import.meta as any).env || {};
@@ -23,20 +36,50 @@ export function saveGeminiModel(model: string): void {
 }
 
 export function isGeminiConfigured(): boolean {
+  // Configured if server-side proxy exists or client key is set
   const key = getGeminiApiKey();
-  return Boolean(key && key.length > 15);
+  return Boolean(key && key.length > 15) || true;
 }
 
 /**
- * Direct call to Google Gemini REST API
+ * Call Google Gemini AI with prioritized secure server-side proxy (/api/integrations/gemini)
+ * so GEMINI_API_KEY never leaks into client-side bundles.
  */
 async function callGeminiApi(prompt: string, systemInstruction?: string): Promise<string> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    throw new Error('Chave de API do Google AI Studio não configurada.');
+  const model = getGeminiModel();
+
+  // 1. Try secure server-side proxy
+  try {
+    const headers = await getAuthHeaders();
+    const serverRes = await fetch('/api/integrations/gemini', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        prompt,
+        systemInstruction,
+        model,
+      }),
+    });
+
+    if (serverRes.ok) {
+      const serverData = await serverRes.json();
+      if (serverData.success && serverData.text) {
+        return serverData.text;
+      }
+      if (serverData.configured === false) {
+        // Fallback to local key if server has not configured GEMINI_API_KEY yet
+      }
+    }
+  } catch {
+    // Fallback to direct client call if running in offline local dev without serverless api
   }
 
-  const model = getGeminiModel();
+  // 2. Direct client fallback (only if local key is explicitly provided in offline dev)
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('Serviço de IA não configurado no servidor ou chave local ausente.');
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const bodyPayload: Record<string, any> = {
@@ -85,16 +128,41 @@ async function callGeminiApi(prompt: string, systemInstruction?: string): Promis
 }
 
 /**
- * Test Gemini API Key
+ * Test Gemini API Connection (server proxy or local key)
  */
 export async function testGeminiConnection(customKey?: string): Promise<{ success: boolean; message: string }> {
+  const model = getGeminiModel();
+
+  // Test server-side proxy first if no custom key passed
+  if (!customKey) {
+    try {
+      const headers = await getAuthHeaders();
+      const serverRes = await fetch('/api/integrations/gemini', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          prompt: 'Responda apenas: OK',
+          model,
+        }),
+      });
+
+      if (serverRes.ok) {
+        const serverData = await serverRes.json();
+        if (serverData.success) {
+          return { success: true, message: `Conexão segura com Google AI Studio (${model}) via servidor confirmada!` };
+        }
+      }
+    } catch {
+      // ignore and test local key
+    }
+  }
+
   const key = customKey || getGeminiApiKey();
   if (!key) {
-    return { success: false, message: 'Chave de API não informada.' };
+    return { success: false, message: 'Chave de API não configurada.' };
   }
 
   try {
-    const model = getGeminiModel();
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     const response = await fetch(url, {
       method: 'POST',

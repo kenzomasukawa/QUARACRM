@@ -20,6 +20,8 @@ import {
   FolderDown,
   Terminal,
   Laptop,
+  Lock,
+  ShieldAlert,
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { exportCardsToCSV, exportAuditLogsToCSV, exportConsultantReportToCSV, validateBackupJSON } from '../utils/exportUtils';
@@ -39,7 +41,13 @@ export const ExportModal: React.FC = () => {
     resetToDefaultData,
     clearAllCards,
     storageInfo,
+    currentUser,
   } = useCRM();
+
+  const canExport = Boolean(
+    currentUser.permissions?.canExport || currentUser.role === 'admin' || currentUser.role === 'manager'
+  );
+  const isAdmin = currentUser.role === 'admin';
 
   const [activeTab, setActiveTab] = useState<'json' | 'csv' | 'desktop' | 'reset'>('json');
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -216,6 +224,19 @@ export const ExportModal: React.FC = () => {
             </div>
           )}
 
+          {/* DLP Guard Banner if user cannot export */}
+          {!canExport && (activeTab === 'json' || activeTab === 'csv') && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold text-xs">
+                <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Exportação Bloqueada por Política de Proteção de Dados (DLP)</span>
+              </div>
+              <p className="text-[11px] text-amber-700/90 dark:text-amber-400 leading-relaxed">
+                Seu perfil de acesso atual (<span className="font-semibold capitalize">{currentUser.role}</span>) não possui autorização para download em massa da carteira de clientes ou relatórios comerciais. Para exportar dados, solicite permissão a um Administrador ou Gestor.
+              </p>
+            </div>
+          )}
+
           {/* TAB 1: JSON BACKUP */}
           {activeTab === 'json' && (
             <div className="space-y-4">
@@ -247,9 +268,10 @@ export const ExportModal: React.FC = () => {
                     <span className="text-[10px] text-neutral-400">{cards.length} registros prontos</span>
                     <button
                       onClick={exportFullJSONBackup}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 active:bg-red-800 text-white font-medium rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                      disabled={!canExport}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 active:bg-red-800 text-white font-medium rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Download className="w-3.5 h-3.5" />
+                      {canExport ? <Download className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                       <span>Baixar JSON</span>
                     </button>
                   </div>
@@ -375,9 +397,10 @@ export const ExportModal: React.FC = () => {
                 </div>
                 <button
                   onClick={() => exportCardsToCSV(cards, phases, users)}
-                  className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-white font-medium rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                  disabled={!canExport}
+                  className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-white font-medium rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  {canExport ? <Download className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                   <span>CSV</span>
                 </button>
               </div>
@@ -392,9 +415,10 @@ export const ExportModal: React.FC = () => {
                 </div>
                 <button
                   onClick={() => exportConsultantReportToCSV(users, cards)}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white font-medium rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                  disabled={!canExport}
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white font-medium rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  {canExport ? <Download className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                   <span>CSV</span>
                 </button>
               </div>
@@ -409,9 +433,10 @@ export const ExportModal: React.FC = () => {
                 </div>
                 <button
                   onClick={() => exportAuditLogsToCSV(auditLogs)}
-                  className="px-3 py-1.5 bg-neutral-700 hover:bg-neutral-800 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-white font-medium rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                  disabled={!canExport}
+                  className="px-3 py-1.5 bg-neutral-700 hover:bg-neutral-800 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-white font-medium rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  {canExport ? <Download className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                   <span>CSV</span>
                 </button>
               </div>
@@ -493,81 +518,95 @@ export const ExportModal: React.FC = () => {
           {/* TAB 3: RESET / DATABASE MAINTENANCE */}
           {activeTab === 'reset' && (
             <div className="space-y-3">
-              <p className="text-neutral-500 dark:text-neutral-400 text-xs">
-                Controles de manutenção para a memória local do seu navegador:
-              </p>
-
-              {/* Reset to Mock Data */}
-              <div className="p-3.5 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-neutral-900 dark:text-neutral-100">Restaurar Dados Padrão</h4>
-                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                      Recarrega a estrutura e os cards de demonstração iniciais.
-                    </p>
+              {!isAdmin ? (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl space-y-2">
+                  <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold text-xs">
+                    <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>Manutenção e Reset Restritos ao Administrador</span>
                   </div>
-                  {!showResetConfirm ? (
-                    <button
-                      onClick={() => setShowResetConfirm(true)}
-                      className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-neutral-700 dark:text-neutral-300 font-medium rounded-lg flex items-center gap-1.5 cursor-pointer text-xs transition-colors"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Restaurar</span>
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleResetDefaults}
-                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs cursor-pointer"
-                      >
-                        Confirmar
-                      </button>
-                      <button
-                        onClick={() => setShowResetConfirm(false)}
-                        className="px-2 py-1 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 text-xs cursor-pointer"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  )}
+                  <p className="text-[11px] text-amber-700/90 dark:text-amber-400 leading-relaxed">
+                    Apenas administradores do sistema possuem autorização para resetar ou limpar dados da base comercial.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <p className="text-neutral-500 dark:text-neutral-400 text-xs">
+                    Controles de manutenção para a memória local do seu navegador:
+                  </p>
 
-              {/* Clear All Cards */}
-              <div className="p-3.5 bg-white dark:bg-neutral-950 border border-rose-200/70 dark:border-rose-900/60 rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-rose-900 dark:text-rose-300">Limpar Todos os Cards</h4>
-                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                      Remove todos os cards do funil para começar um pipeline do zero.
-                    </p>
-                  </div>
-                  {!showClearConfirm ? (
-                    <button
-                      onClick={() => setShowClearConfirm(true)}
-                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 font-medium rounded-lg flex items-center gap-1.5 cursor-pointer text-xs transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Limpar Cards</span>
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleClearCards}
-                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs cursor-pointer"
-                      >
-                        Confirmar Limpeza
-                      </button>
-                      <button
-                        onClick={() => setShowClearConfirm(false)}
-                        className="px-2 py-1 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 text-xs cursor-pointer"
-                      >
-                        Cancelar
-                      </button>
+                  {/* Reset to Mock Data */}
+                  <div className="p-3.5 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold text-neutral-900 dark:text-neutral-100">Restaurar Dados Padrão</h4>
+                        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                          Recarrega a estrutura e os cards de demonstração iniciais.
+                        </p>
+                      </div>
+                      {!showResetConfirm ? (
+                        <button
+                          onClick={() => setShowResetConfirm(true)}
+                          className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-neutral-700 dark:text-neutral-300 font-medium rounded-lg flex items-center gap-1.5 cursor-pointer text-xs transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Restaurar</span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleResetDefaults}
+                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs cursor-pointer"
+                          >
+                            Confirmar
+                          </button>
+                          <button
+                            onClick={() => setShowResetConfirm(false)}
+                            className="px-2 py-1 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 text-xs cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+
+                  {/* Clear All Cards */}
+                  <div className="p-3.5 bg-white dark:bg-neutral-950 border border-rose-200/70 dark:border-rose-900/60 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold text-rose-900 dark:text-rose-300">Limpar Todos os Cards</h4>
+                        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                          Remove todos os cards do funil para começar um pipeline do zero.
+                        </p>
+                      </div>
+                      {!showClearConfirm ? (
+                        <button
+                          onClick={() => setShowClearConfirm(true)}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 font-medium rounded-lg flex items-center gap-1.5 cursor-pointer text-xs transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Limpar Cards</span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleClearCards}
+                            className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg text-xs cursor-pointer"
+                          >
+                            Confirmar Limpeza
+                          </button>
+                          <button
+                            onClick={() => setShowClearConfirm(false)}
+                            className="px-2 py-1 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 text-xs cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
