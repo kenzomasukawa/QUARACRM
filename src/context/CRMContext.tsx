@@ -822,11 +822,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createCard = async (cardData: Partial<CRMCard>): Promise<CRMCard> => {
-    const nextNum = totalLeadsCount + 101;
+    // Não usar um contador sequencial (ex: totalLeadsCount) aqui: ele reflete
+    // apenas os leads carregados/visíveis por RLS e cai quando leads são
+    // excluídos, então reaproveitar o número gera colisão com um id já
+    // existente na tabela (erro de duplicate key em leads_pkey).
     const now = new Date().toISOString();
 
     const newCard: CRMCard = {
-      id: cardData.id || `CARD-${nextNum}`,
+      id: cardData.id || `CARD-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       title: cardData.title || 'Novo Lead',
       companyName: cardData.companyName || 'Empresa Sem Nome',
       contactName: cardData.contactName || 'Contato Principal',
