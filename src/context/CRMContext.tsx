@@ -954,13 +954,16 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteCard = async (id: string) => {
-    if (!currentUser.permissions?.canDeleteCards && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
-      alert('Acesso negado: Você não possui permissão para excluir oportunidades.');
+    const card = cards.find((c) => c.id === id);
+    if (!card) return;
+
+    const isOwnCard = card.assignedUserId === currentUser.id;
+    const canDelete = isOwnCard || currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.permissions?.canDeleteCards;
+    if (!canDelete) {
+      alert('Acesso negado: você só pode excluir oportunidades das quais é responsável.');
       addAuditLog('unauthorized_access' as any, `Tentativa não autorizada de exclusão do card ${id} por ${currentUser.name}.`, id);
       return;
     }
-    const card = cards.find((c) => c.id === id);
-    if (!card) return;
     setCards((prev) => prev.filter((c) => c.id !== id));
     setTotalLeadsCount((prev) => Math.max(0, prev - 1));
     if (selectedCard?.id === id) setSelectedCard(null);
