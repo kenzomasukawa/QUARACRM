@@ -306,30 +306,7 @@ export const CardModal: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                {isEditingTitle ? (
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      value={editTitleText}
-                      onChange={(e) => setEditTitleText(e.target.value)}
-                      onBlur={handleSaveTitle}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
-                      autoFocus
-                      className="text-base font-bold bg-neutral-900 text-white px-2 py-0.5 rounded border border-red-500 focus:outline-none"
-                    />
-                  </div>
-                ) : (
-                  <h3
-                    onClick={() => {
-                      setEditTitleText(selectedCard.title);
-                      setIsEditingTitle(true);
-                    }}
-                    className="font-bold text-base text-white hover:text-red-400 cursor-pointer flex items-center gap-1.5"
-                    title="Clique para editar título"
-                  >
-                    {selectedCard.title}
-                  </h3>
-                )}
+                <h3 className="font-bold text-base text-white">{selectedCard.companyName}</h3>
                 <span className="text-[11px] font-mono text-neutral-400 bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800">
                   {selectedCard.id}
                 </span>
@@ -340,16 +317,39 @@ export const CardModal: React.FC = () => {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-neutral-400">
-                {selectedCard.companyName} • Contato: {selectedCard.contactName} ({selectedCard.contactRole})
-              </p>
+              <div className="flex items-center gap-1 text-xs text-neutral-400">
+                {isEditingTitle ? (
+                  <input
+                    type="text"
+                    value={editTitleText}
+                    onChange={(e) => setEditTitleText(e.target.value)}
+                    onBlur={handleSaveTitle}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
+                    autoFocus
+                    placeholder="Título opcional do card"
+                    className="text-xs bg-neutral-900 text-white px-2 py-0.5 rounded border border-red-500 focus:outline-none"
+                  />
+                ) : (
+                  <span
+                    onClick={() => {
+                      setEditTitleText(selectedCard.title);
+                      setIsEditingTitle(true);
+                    }}
+                    className="hover:text-red-400 cursor-pointer"
+                    title="Clique para editar título (opcional)"
+                  >
+                    {selectedCard.title || '+ Adicionar título (opcional)'}
+                  </span>
+                )}
+                <span>• Contato: {selectedCard.contactName} ({selectedCard.contactRole})</span>
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
-                if (window.confirm(`Deseja realmente excluir a oportunidade "${selectedCard.title}"?`)) {
+                if (window.confirm(`Deseja realmente excluir a oportunidade "${selectedCard.title || selectedCard.companyName}"?`)) {
                   deleteCard(selectedCard.id);
                 }
               }}
@@ -420,6 +420,15 @@ export const CardModal: React.FC = () => {
                 ))}
               </select>
             </div>
+
+            {selectedCard.customFields?.canalProspeccao && (
+              <span
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                title="Canal de Prospecção Utilizado"
+              >
+                {selectedCard.customFields.canalProspeccao}
+              </span>
+            )}
 
             <div className="flex items-center gap-1.5 text-neutral-300">
               <DollarSign className="w-3.5 h-3.5 text-emerald-400" />

@@ -210,9 +210,11 @@ export const TableView: React.FC = () => {
                     <td className="p-3.5 font-mono font-bold text-neutral-400 dark:text-neutral-500">{card.id}</td>
                     <td className="p-3.5">
                       <p className="font-bold text-neutral-900 dark:text-neutral-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
-                        {card.title}
+                        {card.title || card.companyName}
                       </p>
-                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 font-medium">{card.companyName}</p>
+                      {card.title && (
+                        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 font-medium">{card.companyName}</p>
+                      )}
                     </td>
                     <td className="p-3.5" onClick={(e) => e.stopPropagation()}>
                       <select

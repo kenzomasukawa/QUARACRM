@@ -178,6 +178,32 @@ CREATE POLICY "Users can delete own or team lead interactions" ON lead_interacti
   );
 
 -- =========================================================
+-- TEAM ROSTER: exposes just id/email/name/role for every real Supabase
+-- Auth user (never the full auth.users row) so the app can populate the
+-- "Consultor Responsável" dropdowns with real accounts instead of a local
+-- placeholder list. SECURITY DEFINER so any authenticated user can call it
+-- without needing direct SELECT rights on auth.users or on other people's
+-- user_roles row.
+-- =========================================================
+CREATE OR REPLACE FUNCTION public.get_team_profiles()
+RETURNS TABLE (id UUID, email TEXT, name TEXT, role TEXT)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    u.id,
+    u.email::text,
+    COALESCE(u.raw_user_meta_data->>'name', split_part(u.email, '@', 1)) AS name,
+    COALESCE(r.role, 'consultant') AS role
+  FROM auth.users u
+  LEFT JOIN public.user_roles r ON r.user_id = u.id
+  ORDER BY u.created_at ASC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_team_profiles() TO authenticated;
+
+-- =========================================================
 -- MIGRATION NOTE (run once if you already have data from the old
 -- "Allow public" policies): reassign existing rows to a real Supabase
 -- Auth user UUID before enabling the policies above, otherwise those
@@ -393,6 +419,59 @@ export async function fetchPaginatedLeads(params: LeadFilterParams, consultorId:
     totalWonCount,
     totalLostCount,
   };
+}
+
+const AVATAR_BY_ROLE: Record<string, string> = {
+  admin: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+  manager: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+};
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+
+const DEPARTMENT_BY_ROLE: Record<string, string> = {
+  admin: 'Diretoria Executiva',
+  manager: 'Gestão Comercial',
+  viewer: 'Auditoria & Diretoria',
+};
+const DEFAULT_DEPARTMENT = 'Consultoria Comercial';
+
+/**
+ * Fetch the real team roster (every Supabase Auth account + its role from
+ * user_roles) via the get_team_profiles() RPC, so "Consultor Responsável"
+ * dropdowns list real, selectable accounts instead of the local persona
+ * placeholder list. Falls back to an empty array on any failure so callers
+ * can keep the existing local list rather than blanking the UI out.
+ */
+export async function fetchTeamProfiles(): Promise<User[]> {
+  if (!isSupabaseEnvConfigured) return [];
+
+  const { data, error } = await supabase.rpc('get_team_profiles');
+  if (error || !data) {
+    console.error('Failed to fetch team profiles:', error);
+    return [];
+  }
+
+  return (data as { id: string; email: string; name: string; role: string }[]).map((row) => ({
+    id: row.id,
+    name: row.name || row.email.split('@')[0],
+    email: row.email,
+    role: (row.role as User['role']) || 'consultant',
+    avatar: AVATAR_BY_ROLE[row.role] || DEFAULT_AVATAR,
+    phone: '',
+    active: true,
+    department: DEPARTMENT_BY_ROLE[row.role] || DEFAULT_DEPARTMENT,
+    monthlyGoalValue: 80000,
+    monthlyGoalLeads: 4,
+    currentMonthWonValue: 0,
+    currentMonthWonCount: 0,
+    permissions: {
+      canExport: row.role === 'admin' || row.role === 'manager',
+      canEditAutomations: row.role === 'admin' || row.role === 'manager',
+      canViewAllLeads: row.role === 'admin' || row.role === 'manager' || row.role === 'viewer',
+      canEditPhaseFields: row.role === 'admin',
+      canManageUsers: row.role === 'admin',
+      canDeleteCards: row.role === 'admin' || row.role === 'manager',
+    },
+  }));
 }
 
 /**

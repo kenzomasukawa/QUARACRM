@@ -337,6 +337,27 @@ export const KanbanBoard: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Consultor Responsável & Canal de Prospecção — the fields that identify who owns this lead and how it came in */}
+                      {(assignedUser || card.customFields?.canalProspeccao) && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {assignedUser && (
+                            <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+                              <img
+                                src={assignedUser.avatar}
+                                alt={assignedUser.name}
+                                className="w-3.5 h-3.5 rounded-full object-cover ring-1 ring-neutral-300 dark:ring-neutral-700"
+                              />
+                              {assignedUser.name}
+                            </span>
+                          )}
+                          {card.customFields?.canalProspeccao && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-900/50 truncate max-w-[140px]">
+                              {card.customFields.canalProspeccao}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Pipefy Label Row: [A] NOME DO CONTATO */}
                       {card.contactName && (
                         <div className="space-y-0.5">
@@ -420,20 +441,6 @@ export const KanbanBoard: React.FC = () => {
                             >
                               <Phone className="w-3 h-3" />
                             </a>
-                          )}
-
-                          {/* Assignee Avatar */}
-                          {assignedUser ? (
-                            <img
-                              src={assignedUser.avatar}
-                              alt={assignedUser.name}
-                              title={assignedUser.name}
-                              className="w-4 h-4 rounded-full object-cover ring-1 ring-neutral-300 dark:ring-neutral-700"
-                            />
-                          ) : (
-                            <div className="w-4 h-4 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-[8px] text-neutral-500 font-bold">
-                              ?
-                            </div>
                           )}
                         </div>
                       </div>

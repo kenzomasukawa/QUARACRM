@@ -33,8 +33,8 @@ export const NewCardModal: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !companyName.trim()) {
-      alert('Por favor, informe ao menos o Título e a Empresa.');
+    if (!companyName.trim()) {
+      alert('Por favor, informe ao menos a Empresa.');
       return;
     }
 
@@ -89,34 +89,64 @@ export const NewCardModal: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-          {/* Card Title & Company */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-neutral-700 dark:text-neutral-300 mb-1">
-                Título do Card / Projeto <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex: Consultoria de Processos CRM"
-                required
-                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-900 dark:text-neutral-100 focus:bg-white dark:focus:bg-neutral-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:outline-none"
-              />
+          {/* Assigned Consultant & Prospecting Channel — the two fields that matter most */}
+          <div className="p-3 bg-red-50/50 dark:bg-red-950/30 rounded-xl border border-red-200/80 dark:border-red-900/60 space-y-3">
+            <span className="text-[10px] font-bold uppercase text-red-700 dark:text-red-300 tracking-wider block">
+              Responsável & Origem do Lead
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
+                  Consultor Responsável <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={assignedUserId}
+                  onChange={(e) => setAssignedUserId(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-red-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:outline-none"
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
+                  Canal de Prospecção Utilizado <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={canalProspeccao}
+                  onChange={(e) => setCanalProspeccao(e.target.value as ProspectingChannel)}
+                  className="w-full px-3 py-2 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-red-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:outline-none"
+                >
+                  <option value="LinkedIn Sales Nav">LinkedIn Sales Nav</option>
+                  <option value="Cold Call">Cold Call</option>
+                  <option value="Outbound E-mail">Outbound E-mail</option>
+                  <option value="Indicação / Parceiro">Indicação / Parceiro</option>
+                  <option value="Evento / Feira">Evento / Feira</option>
+                  <option value="Inbound Marketing">Inbound Marketing</option>
+                  <option value="WhatsApp / Instagram">WhatsApp / Instagram</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block font-bold text-neutral-700 dark:text-neutral-300 mb-1">
-                Nome da Empresa <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Ex: Acme Logística S/A"
-                required
-                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-900 dark:text-neutral-100 focus:bg-white dark:focus:bg-neutral-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:outline-none"
-              />
-            </div>
+          </div>
+
+          {/* Company */}
+          <div>
+            <label className="block font-bold text-neutral-700 dark:text-neutral-300 mb-1">
+              Nome da Empresa <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="Ex: Acme Logística S/A"
+              required
+              className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-900 dark:text-neutral-100 focus:bg-white dark:focus:bg-neutral-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:outline-none"
+            />
           </div>
 
           {/* Contact Details */}
@@ -196,58 +226,31 @@ export const NewCardModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Initial Prospecting Details */}
-          <div className="p-3 bg-red-50/50 dark:bg-red-950/30 rounded-xl border border-red-200/80 dark:border-red-900/60 space-y-3">
-            <span className="text-[10px] font-bold uppercase text-red-700 dark:text-red-300 tracking-wider block">
-              Origem & Perfil de Prospecção
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">Canal de Prospecção Utilizado *</label>
-                <select
-                  value={canalProspeccao}
-                  onChange={(e) => setCanalProspeccao(e.target.value as ProspectingChannel)}
-                  className="w-full px-3 py-2 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-red-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:outline-none"
-                >
-                  <option value="LinkedIn Sales Nav">LinkedIn Sales Nav</option>
-                  <option value="Cold Call">Cold Call</option>
-                  <option value="Outbound E-mail">Outbound E-mail</option>
-                  <option value="Indicação / Parceiro">Indicação / Parceiro</option>
-                  <option value="Evento / Feira">Evento / Feira</option>
-                  <option value="Inbound Marketing">Inbound Marketing</option>
-                  <option value="WhatsApp / Instagram">WhatsApp / Instagram</option>
-                  <option value="Outro">Outro</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-neutral-800 dark:text-neutral-200 mb-1">Perfil / Segmento (ICP)</label>
-                <input
-                  type="text"
-                  value={perfilICP}
-                  onChange={(e) => setPerfilICP(e.target.value)}
-                  placeholder="Ex: SaaS B2B, Logística, Varejo"
-                  className="w-full px-3 py-2 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-red-200 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:outline-none"
-                />
-              </div>
-            </div>
+          {/* Perfil ICP */}
+          <div>
+            <label className="block font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Perfil / Segmento (ICP)</label>
+            <input
+              type="text"
+              value={perfilICP}
+              onChange={(e) => setPerfilICP(e.target.value)}
+              placeholder="Ex: SaaS B2B, Logística, Varejo"
+              className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-900 dark:text-neutral-100 focus:bg-white dark:focus:bg-neutral-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:outline-none"
+            />
           </div>
 
-          {/* Assigned Consultant & Tags */}
+          {/* Optional Title & Tags */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Consultor Responsável</label>
-              <select
-                value={assignedUserId}
-                onChange={(e) => setAssignedUserId(e.target.value)}
+              <label className="block font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Título do Card / Projeto <span className="text-neutral-400 font-normal">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ex: Consultoria de Processos CRM"
                 className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg text-neutral-900 dark:text-neutral-100 focus:bg-white dark:focus:bg-neutral-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:outline-none"
-              >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.role})
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>

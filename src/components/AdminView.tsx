@@ -553,6 +553,14 @@ export const AdminView: React.FC = () => {
               </button>
             </div>
 
+            <div className="mx-6 mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-lg text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+              <strong>Este cadastro é só local</strong> (exibição de metas/relatórios) — não cria login nem permite que a
+              pessoa seja atribuída como responsável real de um lead. Para isso, crie a conta em{' '}
+              <strong>Supabase Auth → Authentication → Users</strong> e depois rode o <code>INSERT INTO user_roles</code>{' '}
+              (veja o CLAUDE.md do projeto). Assim que a conta existir de verdade, ela aparece automaticamente nos
+              dropdowns de &quot;Consultor Responsável&quot;.
+            </div>
+
             <form onSubmit={handleCreateUser} className="p-6 space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-neutral-700 dark:text-neutral-300 mb-1">Nome Completo *</label>

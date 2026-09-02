@@ -39,6 +39,7 @@ import {
   deleteLeadFromSupabase,
   migrateCardsToSupabase,
   getSupabaseSchemaSQL,
+  fetchTeamProfiles,
 } from '../services/leadsService';
 
 export interface PendingTransition {
@@ -205,6 +206,24 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'users') || localStorage.getItem(LEGACY_STORAGE_PREFIX + 'users');
     return saved ? JSON.parse(saved) : INITIAL_USERS;
   });
+
+  // When authenticated against Supabase, replace the local placeholder roster
+  // (which only ever contains whoever used "Adicionar colaborador" locally,
+  // with fake ids that never match a real auth.uid()) with the real team —
+  // this is what makes every consultant selectable as a lead owner and keeps
+  // assignedUserId values valid against RLS.
+  useEffect(() => {
+    if (!isSupabaseEnvConfigured || !authUser) return;
+    let cancelled = false;
+    fetchTeamProfiles().then((profiles) => {
+      if (!cancelled && profiles.length > 0) {
+        setUsers(profiles);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser]);
 
   const [currentUserId, setCurrentUserIdState] = useState<string>(() => {
     return localStorage.getItem(STORAGE_KEY_PREFIX + 'current_user_id') || localStorage.getItem(LEGACY_STORAGE_PREFIX + 'current_user_id') || 'user_admin';
